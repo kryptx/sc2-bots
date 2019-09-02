@@ -7,9 +7,7 @@
   * Allocates resources, workers, and army to each advisor.
   * Race-agnostic
 * Race-specific Advisors:
-  * Economy advisor requests new workers and expansions. Watches supply and manages macro abilities such as spawn larva.
-  * Defense advisor requests structures and a few units to protect the base.
-  * Strategy advisor scouts, finds enemy bases and units, to determine optimal unit composition, attack paths, and timing.
-  * Tactical advisor carries out all attack orders and monitors the base for defense.
-* Advisors should assume they are the only one running. Give an appropriate urgency and priority and let the manager decide
-* all requests should include a cancel_condition method, so manager knows if they become obsolete
+  * Economy advisor requests new workers and expansions. Watches supply.
+  * Strategy advisor finds enemy bases and units, and requests structures to build optimal unit composition. Decides when and where to attack.
+  * Tactical advisor manages units to protect the base and execute attacks including micro.
+* Advisors should assume they are the only one running. Request everything, give an appropriate urgency and let the manager decide
