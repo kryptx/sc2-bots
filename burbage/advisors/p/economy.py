@@ -101,7 +101,7 @@ class ProtossEconomyAdvisor(Advisor):
   def determine_pylon_urgency(self):
     pylon_urgency = Urgency.NONE
 
-    if self.manager.supply_cap < 200 and not self.manager.already_pending(PYLON):
+    if self.manager.supply_cap < 200 and not self.manager.already_pending(UnitTypeId.PYLON):
       if self.manager.supply_left <= 0:
         pylon_urgency = Urgency.EXTREME
       if self.manager.supply_left < self.manager.desired_supply_buffer:

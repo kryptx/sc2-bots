@@ -6,8 +6,10 @@ from sc2 import Race, Difficulty
 from sc2.constants import *
 from sc2.player import Bot, Computer
 from sc2.unit_command import UnitCommand
+from sc2.units import Units
 
 from advisors.p.economy import ProtossEconomyAdvisor
+from advisors.p.tactics import ProtossTacticsAdvisor
 from advisors.p.vp_strategy import PvPStrategyAdvisor
 
 from common import Urgency
@@ -21,12 +23,17 @@ class MacroManagerBot(sc2.BotAI):
   def __init__(self):
     self.economy_advisor = ProtossEconomyAdvisor(self)
     self.strategy_advisor = PvPStrategyAdvisor(self)
+    self.tactics_advisor = ProtossTacticsAdvisor(self)
+    self.scout_tags = []
+    self.attacker_tags = []
+    self.rally_point = None
 
     self.desired_supply_buffer = 3
 
     self.advisors = [
       self.economy_advisor,
-      self.strategy_advisor
+      self.strategy_advisor,
+      self.tactics_advisor
     ]
 
   async def on_step(self, iteration):
@@ -51,7 +58,7 @@ class MacroManagerBot(sc2.BotAI):
         fulfill_threshold = request.urgency
 
 def main():
-  sc2.run_game(sc2.maps.get("CactusValleyLE"), [
+  sc2.run_game(sc2.maps.get("DefendersLandingLE"), [
     Bot(Race.Protoss, MacroManagerBot()),
     Computer(Race.Protoss, Difficulty.VeryHard)
   ], realtime=False)
