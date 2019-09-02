@@ -1,0 +1,11 @@
+# my virtualenv
+botenv/
+
+# until I know what i'm doing with this
+.vscode/
+
+# my editable local install?
+*.egg-info/
+
+# some garbage
+__pycache__
