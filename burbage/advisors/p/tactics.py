@@ -10,22 +10,29 @@ from burbage.common import list_diff, list_flatten
 class ProtossTacticsAdvisor(Advisor):
   def __init__(self, manager):
     super().__init__(manager)
+    self.attack_targets = []
 
   async def tick(self):
     self.scout()
     self.attack()
-    await self.arrange()
+    self.arrange()
     return []
 
   def find_danger(self, scout):
-    return (self.manager.enemy_units + self.manager.enemy_structures).filter(lambda e: e.target_in_range(scout))
+    return (
+        self.manager.enemy_units +
+        self.manager.enemy_structures
+      ).filter(lambda e: (
+        (e.is_detector and scout.is_cloaked and e.distance_to(scout) <= e.sight_range + 1) or
+        (scout.can_be_attacked and e.target_in_range(scout, bonus_distance=1))
+      ))
 
   def scout(self):
     for scout in self.manager.units().tags_in(self.manager.scout_tags):
       target = None
       danger = self.find_danger(scout)
-      if danger.exists:
-        target = scout.position.towards(danger.center, -3)
+      if danger and danger.exists:
+        target = scout.position.towards(danger.center, -2)
       elif scout.is_idle:
         scout_locations = list(self.manager.expansion_locations.keys()) + self.manager.enemy_start_locations
         target = scout_locations[random.randint(0, len(scout_locations) - 1)]
@@ -40,7 +47,7 @@ class ProtossTacticsAdvisor(Advisor):
         attack_location = self.manager.enemy_structures.random.position
       self.manager.do(attacker.attack(attack_location))
 
-  async def arrange(self):
+  def arrange(self):
     if not self.manager.rally_point:
       return
 
@@ -48,7 +55,10 @@ class ProtossTacticsAdvisor(Advisor):
       UnitTypeId.ZEALOT,
       UnitTypeId.STALKER,
       UnitTypeId.ARCHON
-    }).tags_not_in(list(self.manager.attacker_tags) + list(self.manager.scout_tags))
+    }).tags_not_in(
+      list(self.manager.attacker_tags) +
+      list(self.manager.scout_tags)
+    )
 
     if available.idle.exists:
       for unit in available.idle.further_than(6, self.manager.rally_point):

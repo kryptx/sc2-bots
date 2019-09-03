@@ -61,7 +61,7 @@ class ProtossEconomyAdvisor(Advisor):
     numWorkers = self.manager.workers.amount
     if numWorkers < (len(nodes) * 2 + assimilators.amount*3) and numWorkers <= WORKER_LIMIT:
       for nex in self.manager.townhalls.idle:
-        requests.append(TrainingRequest(UnitTypeId.PROBE, nex, Urgency.HIGH))
+        requests.append(TrainingRequest(UnitTypeId.PROBE, nex, Urgency.VERYHIGH))
 
   def check_vespene_status(self, nexuses, assimilators, requests):
     # Build enough assimilators to keep up with demand. more than that if we're rich.
@@ -71,8 +71,12 @@ class ProtossEconomyAdvisor(Advisor):
         # Default to Low urgency, increase if we're behind
         urgency = Urgency.LOW
 
+        if self.manager.structures({ UnitTypeId.GATEWAY, UnitTypeId.WARPGATE }).empty:
+          # Let's get a gate started first
+          urgency = Urgency.NONE
+
         # TODO: allow urgency to be increased by other advisors
-        if nexuses.ready.amount < assimilators.amount or self.manager.minerals > self.manager.vespene * 3:
+        if nexuses.ready.amount < assimilators.amount or (self.manager.minerals > 500 and self.manager.vespene < 50):
           urgency = Urgency.HIGH
 
         requests.append(StructureRequest(UnitTypeId.ASSIMILATOR, vgs[0], urgency, exact=True))

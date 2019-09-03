@@ -50,15 +50,19 @@ class MacroManagerBot(sc2.BotAI):
         break
 
       request = requests.pop(0)
-      if self.can_afford(request.expense):
+      if request.urgency and self.can_afford(request.expense):
         action = await request.fulfill(self)
         if action:
           self.do(action)
       else:
         fulfill_threshold = request.urgency
 
+  async def on_upgrade_complete(self, upgrade):
+    for advisor in self.advisors:
+      await advisor.on_upgrade_complete(upgrade)
+
 def main():
-  sc2.run_game(sc2.maps.get("DefendersLandingLE"), [
+  sc2.run_game(sc2.maps.get("AcropolisLE"), [
     Bot(Race.Protoss, MacroManagerBot()),
     Computer(Race.Protoss, Difficulty.VeryHard)
   ], realtime=False)

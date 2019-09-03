@@ -9,13 +9,55 @@ from burbage.common import Urgency, TrainingRequest, StructureRequest, ResearchR
 class PvPStrategyAdvisor(Advisor):
   def __init__(self, manager):
     super().__init__(manager)
+    self.warpgate_complete = False
+
+  async def on_upgrade_complete(self, upgrade):
+    if upgrade == UpgradeId.WARPGATERESEARCH:
+      self.warpgate_complete = True
 
   async def tick(self):
     requests = []
-    await self.audit_battlefield(requests)
+    self.manager.rally_point = self.determine_rally_point()
+    await self.audit_structures(requests)
+    await self.audit_research(requests)
+    await self.build_gateway_units(requests)
+    await self.build_robotics_units(requests)
+    self.use_excess_chrono_boosts()
     self.handle_threats()
-
+    self.allocate_units()
     return requests
+
+  def use_excess_chrono_boosts(self):
+    full_nexuses = self.manager.townhalls.filter(lambda nex: nex.energy > 190)
+    if full_nexuses.exists:
+      nexus = full_nexuses.random
+      gate = self.manager.structures({
+        UnitTypeId.GATEWAY,
+        UnitTypeId.WARPGATE
+      }).filter(lambda gate: not gate.has_buff(BuffId.CHRONOBOOSTENERGYCOST))
+
+      if gate.exists:
+        self.manager.do(nexus(AbilityId.EFFECT_CHRONOBOOSTENERGYCOST, gate.random))
+
+  def allocate_units(self):
+    # Populate values for tactical advisor to read
+    my_army = self.manager.units({ UnitTypeId.ZEALOT, UnitTypeId.STALKER, UnitTypeId.ARCHON })
+    if my_army.idle.amount >= 35:
+      self.manager.attacker_tags = {
+        u.tag
+        for u in self.manager.units({ UnitTypeId.ZEALOT, UnitTypeId.STALKER, UnitTypeId.ARCHON })
+      }
+    else:
+      self.manager.attacker_tags = []
+
+    self.manager.scout_tags = {
+      u.tag
+      for u in self.manager.units(UnitTypeId.OBSERVER)
+    }
+
+    # Morph any archons
+    for templar in self.manager.units(UnitTypeId.HIGHTEMPLAR):
+      self.manager.do(templar(AbilityId.MORPH_ARCHON))
 
   def handle_threats(self):
     enemy_units = self.manager.enemy_units
@@ -27,30 +69,25 @@ class PvPStrategyAdvisor(Advisor):
       for defender in available_defenders:
         self.manager.do(defender.attack(threatening_units[random.randint(0, len(threatening_units) - 1)].position))
 
-  async def build_stargate_units(self, stargates, requests):
-    if any([not sg.orders for sg in stargates]):
-      numPhoenixes = self.manager.units(UnitTypeId.PHOENIX).amount
-      numPhoenixes += stargates.filter(lambda sg: sg.orders and sg.orders[0].ability == AbilityId.STARGATETRAIN_PHOENIX).amount
-      for sg in stargates.filter(lambda sg: sg.is_idle):
-        urgency = Urgency.MEDIUM
-        if numPhoenixes < 1:
-          urgency = Urgency.MEDIUMHIGH
-        if numPhoenixes < 4:
-          requests.append(TrainingRequest(UnitTypeId.PHOENIX, sg, urgency))
+  async def build_robotics_units(self, requests):
+    robos = self.manager.structures(UnitTypeId.ROBOTICSFACILITY)
+    if robos.empty:
+      return
 
-  async def build_robotics_units(self, robos, requests):
-    if any([not robo.orders for robo in robos]):
-      numObservers = self.manager.units(UnitTypeId.OBSERVER).amount
-      numObservers += robos.filter(lambda r: r.orders and r.orders[0].ability == AbilityId.ROBOTICSFACILITYTRAIN_OBSERVER).amount
-      for robo in robos.filter(lambda r: r.is_idle):
-        urgency = Urgency.MEDIUM
-        if numObservers < 1:
-          urgency = Urgency.MEDIUMHIGH
-        if numObservers < 2:
-          requests.append(TrainingRequest(UnitTypeId.OBSERVER, robo, urgency))
-          numObservers += 1
+    numObservers = self.manager.units(UnitTypeId.OBSERVER).amount
+
+    for robo in robos.idle:
+      urgency = Urgency.MEDIUM
+      if numObservers < 1:
+        urgency = Urgency.MEDIUMHIGH
+      if numObservers < 2:
+        requests.append(TrainingRequest(UnitTypeId.OBSERVER, robo, urgency))
+        numObservers += 1
 
   async def build_gateway_units(self, requests):
+    if self.manager.structures({ UnitTypeId.GATEWAY, UnitTypeId.WARPGATE }).empty:
+      return
+
     pylon = self.manager.structures(UnitTypeId.PYLON).ready.closest_to(self.manager.game_info.map_center)
     zealots = self.manager.units(UnitTypeId.ZEALOT)
     stalkers = self.manager.units(UnitTypeId.STALKER)
@@ -71,9 +108,9 @@ class PvPStrategyAdvisor(Advisor):
 
     for warpgate in self.manager.structures(UnitTypeId.WARPGATE).ready:
       desired_unit = UnitTypeId.STALKER
-      if counts[UnitTypeId.ZEALOT] < counts[UnitTypeId.STALKER]:
+      if counts[UnitTypeId.ZEALOT] < counts[UnitTypeId.STALKER] or not self.manager.can_afford(desired_unit):
         desired_unit = UnitTypeId.ZEALOT
-      if archives.exists and counts[UnitTypeId.ARCHON] < counts[UnitTypeId.STALKER] / 4:
+      if archives.exists and (counts[UnitTypeId.ARCHON] < counts[UnitTypeId.STALKER] / 4 or not self.manager.can_afford(desired_unit)):
         desired_unit = UnitTypeId.HIGHTEMPLAR
 
       if not self.manager.can_afford(desired_unit): # we're done here
@@ -89,7 +126,7 @@ class PvPStrategyAdvisor(Advisor):
           self.manager.do(warpgate.warp_in(desired_unit, placement))
 
     gateways = self.manager.structures(UnitTypeId.GATEWAY)
-    if gateways.idle.exists and not self.manager.structures(UnitTypeId.WARPGATE).exists:
+    if gateways.idle.exists and not self.warpgate_complete:
       for g in gateways.idle:
         desired_unit = UnitTypeId.STALKER
         if counts[UnitTypeId.ZEALOT] < counts[UnitTypeId.STALKER] / 2:
@@ -108,55 +145,8 @@ class PvPStrategyAdvisor(Advisor):
     ramps = sorted(self.manager.game_info.map_ramps, key=distance_to_base)
     return ramps[0].top_center
 
-  async def audit_battlefield(self, requests):
-    # Populate values for tactical advisor to read
-    stalkers = self.manager.units(UnitTypeId.STALKER)
-    if stalkers.idle.amount > 16:
-      self.manager.attacker_tags = {
-        u.tag
-        for u in self.manager.units({ UnitTypeId.ZEALOT, UnitTypeId.STALKER, UnitTypeId.ARCHON })
-      }
-
-    self.manager.scout_tags = {
-      u.tag
-      for u in self.manager.units(UnitTypeId.OBSERVER)
-    }
-
-    self.manager.rally_point = self.determine_rally_point()
-
-    # Morph any archons
-    for templar in self.manager.units(UnitTypeId.HIGHTEMPLAR):
-      self.manager.do(templar(AbilityId.MORPH_ARCHON))
-
-    # Without pylons, can't do much more
-    if not self.manager.structures(UnitTypeId.PYLON).ready.exists:
-      return
-
-    # Prep some collections
-    gateways = self.manager.structures({ UnitTypeId.GATEWAY, UnitTypeId.WARPGATE })
-    nexuses = self.manager.townhalls
-    councils = self.manager.structures(UnitTypeId.TWILIGHTCOUNCIL)
-    archives = self.manager.structures(UnitTypeId.TEMPLARARCHIVE)
-
-    # TODO: Smarter building placement
-    pylon = self.manager.structures(UnitTypeId.PYLON).ready.random
-
-    # Gateways before all. we're not cannon rushing.
-    if not gateways.exists:
-      requests.append(StructureRequest(UnitTypeId.GATEWAY, pylon.position, Urgency.HIGH))
-      return
-
-    if (not self.manager.structures(UnitTypeId.CYBERNETICSCORE).exists
-    and not self.manager.already_pending(UnitTypeId.CYBERNETICSCORE)
-    and gateways.ready.exists):
-      requests.append(StructureRequest(UnitTypeId.CYBERNETICSCORE, pylon.position, Urgency.HIGH))
-
-    # forge when you get around to it.
-    if (self.manager.units({ UnitTypeId.ZEALOT, UnitTypeId.STALKER, UnitTypeId.ARCHON }).amount >= 5
-    and not self.manager.structures(UnitTypeId.FORGE).exists
-    and not self.manager.already_pending(UnitTypeId.FORGE)):
-      requests.append(StructureRequest(UnitTypeId.FORGE, pylon.position, Urgency.MEDIUMLOW))
-
+  async def audit_research(self, requests):
+    # FORGE UPGRADES
     for idle_forge in self.manager.structures(UnitTypeId.FORGE).idle:
       forge_abilities = await self.manager.get_available_abilities(idle_forge)
       if AbilityId.FORGERESEARCH_PROTOSSGROUNDWEAPONSLEVEL1 in forge_abilities:
@@ -178,40 +168,81 @@ class PvPStrategyAdvisor(Advisor):
       elif AbilityId.FORGERESEARCH_PROTOSSSHIELDSLEVEL3 in forge_abilities:
         requests.append(ResearchRequest(AbilityId.FORGERESEARCH_PROTOSSSHIELDSLEVEL3, idle_forge, Urgency.LOW))
 
-    cores = self.manager.structures(UnitTypeId.CYBERNETICSCORE).ready
-    if not cores.exists:
+    if self.warpgate_complete:
+      for busy_forge in self.manager.structures(UnitTypeId.FORGE).filter(lambda f: not f.is_idle and not f.has_buff(BuffId.CHRONOBOOSTENERGYCOST)):
+        for nexus in self.manager.townhalls:
+          abilities = await self.manager.get_available_abilities(nexus)
+          if AbilityId.EFFECT_CHRONOBOOSTENERGYCOST in abilities:
+            self.manager.do(nexus(AbilityId.EFFECT_CHRONOBOOSTENERGYCOST, busy_forge))
+            break
+
+    cores = self.manager.structures(UnitTypeId.CYBERNETICSCORE)
+    if cores.empty:
       return
 
-    core = cores.first
-    abilities = await self.manager.get_available_abilities(core)
-    if AbilityId.RESEARCH_WARPGATE in abilities:
-      requests.append(ResearchRequest(AbilityId.RESEARCH_WARPGATE, core, Urgency.HIGH))
+    # CORE UPGRADES
+    if cores.idle.exists:
+      core = cores.idle.first
+      abilities = await self.manager.get_available_abilities(core)
+      if AbilityId.RESEARCH_WARPGATE in abilities:
+        requests.append(ResearchRequest(AbilityId.RESEARCH_WARPGATE, core, Urgency.HIGH))
     else:
+      core = cores.first
       if core.orders and not core.has_buff(BuffId.CHRONOBOOSTENERGYCOST):
-        for nexus in nexuses:
+        for nexus in self.manager.townhalls:
           abilities = await self.manager.get_available_abilities(nexus)
           if AbilityId.EFFECT_CHRONOBOOSTENERGYCOST in abilities:
             self.manager.do(nexus(AbilityId.EFFECT_CHRONOBOOSTENERGYCOST, core))
             break
 
+  async def audit_structures(self, requests):
+    # Without pylons, can't do much more
+    if not self.manager.structures(UnitTypeId.PYLON).ready.exists:
+      return
+
+    # Prep some collections
+    gateways = self.manager.structures({ UnitTypeId.GATEWAY, UnitTypeId.WARPGATE })
+    nexuses = self.manager.townhalls
+    councils = self.manager.structures(UnitTypeId.TWILIGHTCOUNCIL)
+    archives = self.manager.structures(UnitTypeId.TEMPLARARCHIVE)
+
+    # TODO: Smarter building placement
+    pylon = self.manager.structures(UnitTypeId.PYLON).ready.random
+
+    # The rest of this is just tech tree stuff. gateway > core > forge + robo + TC > TA
+    # Gateways before all. we're not cannon rushing.
+    if not gateways.exists:
+      requests.append(StructureRequest(UnitTypeId.GATEWAY, pylon.position, Urgency.HIGH))
+      return
+
+    if (not self.manager.structures(UnitTypeId.CYBERNETICSCORE).exists
+    and not self.manager.already_pending(UnitTypeId.CYBERNETICSCORE)
+    and gateways.ready.exists):
+      requests.append(StructureRequest(UnitTypeId.CYBERNETICSCORE, pylon.position, Urgency.HIGH))
+
+    # forge when you get around to it.
+    if (self.manager.units({ UnitTypeId.ZEALOT, UnitTypeId.STALKER, UnitTypeId.ARCHON }).amount >= 5
+    and not self.manager.structures(UnitTypeId.FORGE).exists
+    and not self.manager.already_pending(UnitTypeId.FORGE)):
+      requests.append(StructureRequest(UnitTypeId.FORGE, pylon.position, Urgency.MEDIUMLOW))
+
+    cores = self.manager.structures(UnitTypeId.CYBERNETICSCORE).ready
+    if not cores.exists:
+      return
+
     numGateways = gateways.amount
     if not self.manager.already_pending(UnitTypeId.GATEWAY) and (numGateways < self.manager.townhalls.amount * 2 or self.manager.minerals > 1500):
       requests.append(StructureRequest(UnitTypeId.GATEWAY, pylon.position, Urgency.MEDIUM))
 
-    if numGateways > 0:
-      await self.build_gateway_units(requests)
+    # BUILD A ROBO
+    if self.manager.structures(UnitTypeId.ROBOTICSFACILITY).empty:
+      requests.append(StructureRequest(UnitTypeId.ROBOTICSFACILITY, pylon.position, Urgency.MEDIUMHIGH))
 
-    if self.manager.structures(UnitTypeId.CYBERNETICSCORE).ready.exists:
-      robos = self.manager.structures(UnitTypeId.ROBOTICSFACILITY)
-      numRobos = robos.amount
-      if numRobos == 0:
-        requests.append(StructureRequest(UnitTypeId.ROBOTICSFACILITY, pylon.position, Urgency.MEDIUMHIGH))
-      else:
-        await self.build_robotics_units(robos, requests)
-
+    # BUILD A COUNCIL
     if not councils.exists and not self.manager.already_pending(UnitTypeId.TWILIGHTCOUNCIL):
       requests.append(StructureRequest(UnitTypeId.TWILIGHTCOUNCIL, pylon.position, Urgency.MEDIUMHIGH))
 
+    # RESEARCH CHARGE
     if councils.idle.exists:
       council = councils.idle.first
       tc_abilities = await self.manager.get_available_abilities(council)
@@ -221,5 +252,6 @@ class PvPStrategyAdvisor(Advisor):
     if not councils.exists:
       return
 
+    # BUILD AN ARCHIVE
     if not archives.exists and not self.manager.already_pending(UnitTypeId.TEMPLARARCHIVE):
       requests.append(StructureRequest(UnitTypeId.TEMPLARARCHIVE, pylon.position, Urgency.MEDIUMHIGH))
