@@ -51,12 +51,13 @@ class ResearchRequest():
     # return
 
 class ExpansionRequest():
-  def __init__(self, urgency):
+  def __init__(self, location, urgency):
     self.urgency = urgency
     self.expense = UnitTypeId.NEXUS
+    self.location = location
 
   async def fulfill(self, bot):
-    await bot.expand_now()
+    await bot.expand_now(location=self.location)
     return
 
 def list_diff(first, second):

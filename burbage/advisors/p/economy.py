@@ -14,7 +14,7 @@ class ProtossEconomyAdvisor(Advisor):
     super().__init__(manager)
 
   async def tick(self):
-    await self.manager.distribute_workers()
+    await self.manager.distribute_workers(resource_ratio=3)
     requests = []
     assimilators = self.manager.structures(UnitTypeId.ASSIMILATOR)
     nexuses = self.manager.townhalls
@@ -40,7 +40,18 @@ class ProtossEconomyAdvisor(Advisor):
     return requests
 
   def resource_centroid(self, townhall):
-    return Point2.center([r.position for r in self.manager.expansion_locations[townhall.position]])
+    return Point2.center([r.position for r in self.manager.mineral_field.closer_than(15, townhall)])
+
+  def bases_centroid(self):
+    return Point2.center([nex.position for nex in self.manager.townhalls])
+
+  def next_base(self):
+    centroid = self.bases_centroid()
+    def distance_to_home(location):
+      return centroid.distance_to(location)
+
+    all_possible_expansions = [loc for loc in list(self.manager.expansion_locations.keys()) if loc not in self.manager.owned_expansions.keys()]
+    return sorted(all_possible_expansions, key=distance_to_home)[0]
 
   def sum_mineral_contents(self, nodes):
     return sum([field.mineral_contents for field in nodes])
@@ -64,43 +75,56 @@ class ProtossEconomyAdvisor(Advisor):
         requests.append(TrainingRequest(UnitTypeId.PROBE, nex, Urgency.VERYHIGH))
 
   def check_vespene_status(self, nexuses, assimilators, requests):
+    # try returning workers that are gathering from an assimilator in progress
+    not_ready_assimilator_tags = [nra.tag for nra in assimilators.not_ready]
+    for worker in self.manager.workers.gathering.filter(lambda w: w.is_idle or w.orders[0].target in not_ready_assimilator_tags):
+      self.manager.do(worker.gather(self.manager.mineral_field.closest_to(worker)))
     # Build enough assimilators to keep up with demand. more than that if we're rich.
     if assimilators.amount < nexuses.ready.amount * 2:
       vgs = self.get_empty_geysers(assimilators)
       if vgs:
         # Default to Low urgency, increase if we're behind
         urgency = Urgency.LOW
-
-        if self.manager.structures({ UnitTypeId.GATEWAY, UnitTypeId.WARPGATE }).empty:
-          # Let's get a gate started first
+        gates = self.manager.structures({ UnitTypeId.GATEWAY, UnitTypeId.WARPGATE })
+        if gates.amount < 2 and assimilators.amount >= gates.amount:
+          # keep the number of gateways ahead until there are 2 of each
           urgency = Urgency.NONE
 
-        # TODO: allow urgency to be increased by other advisors
-        if nexuses.ready.amount < assimilators.amount or (self.manager.minerals > 500 and self.manager.vespene < 50):
+        elif nexuses.ready.amount <= 2:
+          urgency = Urgency.MEDIUM
+
+        elif nexuses.ready.amount == 3:
+          urgency = Urgency.MEDIUMHIGH
+
+        elif nexuses.ready.amount >= 4:
           urgency = Urgency.HIGH
 
-        requests.append(StructureRequest(UnitTypeId.ASSIMILATOR, vgs[0], urgency, exact=True))
+        if urgency:
+          requests.append(StructureRequest(UnitTypeId.ASSIMILATOR, vgs[0], urgency, exact=True))
 
   def maybe_expand(self, nodes, assimilators, requests):
-    nexusUrgency = Urgency.NONE
+    next_base_location = self.next_base()
+    for unit in self.manager.units().closer_than(5, next_base_location):
+      if unit.is_idle:
+        self.manager.do(unit.move(next_base_location.towards(self.manager.game_info.map_center, 10)))
+    nexus_urgency = Urgency.NONE
     mineable = self.sum_mineral_contents(nodes)
 
     if not self.manager.already_pending(UnitTypeId.NEXUS):
       # Expand as we run out of minerals
-      if mineable < 5000:
-        nexusUrgency += 1
+      if self.manager.workers.amount >= (len(nodes) * 2 + assimilators.filter(lambda a: a.vespene_contents > 0).amount*2): # deliberately below full saturation
+        nexus_urgency += 4
 
-      if self.manager.workers.amount >= (len(nodes) * 2 + assimilators.amount*3):
-        nexusUrgency += 3
+      if mineable < 5000:
+        nexus_urgency += 1
 
       if mineable < 1000:
-        nexusUrgency += 2
+        nexus_urgency += 2
 
       if len(nodes) < 10:
-        nexusUrgency += 2
+        nexus_urgency += 2
 
-      if(nexusUrgency):
-        requests.append(ExpansionRequest(nexusUrgency))
+      requests.append(ExpansionRequest(next_base_location, nexus_urgency))
 
   def determine_pylon_urgency(self):
     pylon_urgency = Urgency.NONE

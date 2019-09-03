@@ -107,17 +107,24 @@ class PvPStrategyAdvisor(Advisor):
     }
 
     for warpgate in self.manager.structures(UnitTypeId.WARPGATE).ready:
-      desired_unit = UnitTypeId.STALKER
-      if counts[UnitTypeId.ZEALOT] < counts[UnitTypeId.STALKER] or not self.manager.can_afford(desired_unit):
-        desired_unit = UnitTypeId.ZEALOT
-      if archives.exists and (counts[UnitTypeId.ARCHON] < counts[UnitTypeId.STALKER] / 4 or not self.manager.can_afford(desired_unit)):
-        desired_unit = UnitTypeId.HIGHTEMPLAR
+      unit_priority = [ UnitTypeId.STALKER ]
+      if counts[UnitTypeId.ZEALOT] < counts[UnitTypeId.STALKER]:
+        unit_priority.insert(0, UnitTypeId.ZEALOT)
+      else:
+        unit_priority.append(UnitTypeId.ZEALOT)
 
-      if not self.manager.can_afford(desired_unit): # we're done here
+      if archives.exists:
+        if counts[UnitTypeId.ARCHON] < counts[UnitTypeId.STALKER] / 4:
+          unit_priority.insert(0, UnitTypeId.HIGHTEMPLAR)
+        else:
+          unit_priority.append(UnitTypeId.HIGHTEMPLAR)
+
+      desired_unit = next((unit for unit in unit_priority if self.manager.can_afford(unit)), None)
+
+      if not desired_unit: # we're done here
         return
 
       abilities = await self.manager.get_available_abilities(warpgate)
-      # all the units have the same cooldown anyway so let's just look at ZEALOT
       if AbilityId.WARPGATETRAIN_ZEALOT in abilities:
         pos = pylon.position.to2.random_on_distance([2, 5])
         placement = await self.manager.find_placement(warp_id[desired_unit], pos, placement_step=1)
@@ -126,12 +133,13 @@ class PvPStrategyAdvisor(Advisor):
           self.manager.do(warpgate.warp_in(desired_unit, placement))
 
     gateways = self.manager.structures(UnitTypeId.GATEWAY)
-    if gateways.idle.exists and not self.warpgate_complete:
+    if gateways.idle.exists and not self.warpgate_complete and self.manager.units({ UnitTypeId.ZEALOT, UnitTypeId.STALKER }).amount < 3:
       for g in gateways.idle:
+
         desired_unit = UnitTypeId.STALKER
-        if counts[UnitTypeId.ZEALOT] < counts[UnitTypeId.STALKER] / 2:
+        if counts[UnitTypeId.ZEALOT] < counts[UnitTypeId.STALKER] or not self.manager.can_afford(desired_unit):
           desired_unit = UnitTypeId.ZEALOT
-        requests.append(TrainingRequest(desired_unit, g, Urgency.HIGH))
+        requests.append(TrainingRequest(desired_unit, g, Urgency.MEDIUM))
     return
 
   def determine_rally_point(self):
@@ -212,7 +220,7 @@ class PvPStrategyAdvisor(Advisor):
     # The rest of this is just tech tree stuff. gateway > core > forge + robo + TC > TA
     # Gateways before all. we're not cannon rushing.
     if not gateways.exists:
-      requests.append(StructureRequest(UnitTypeId.GATEWAY, pylon.position, Urgency.HIGH))
+      requests.append(StructureRequest(UnitTypeId.GATEWAY, pylon.position, Urgency.VERYHIGH))
       return
 
     if (not self.manager.structures(UnitTypeId.CYBERNETICSCORE).exists
@@ -226,13 +234,13 @@ class PvPStrategyAdvisor(Advisor):
     and not self.manager.already_pending(UnitTypeId.FORGE)):
       requests.append(StructureRequest(UnitTypeId.FORGE, pylon.position, Urgency.MEDIUMLOW))
 
+    numGateways = gateways.amount
+    if not self.manager.already_pending(UnitTypeId.GATEWAY) and (numGateways < self.manager.townhalls.amount * 2 or self.manager.minerals > 1500):
+      requests.append(StructureRequest(UnitTypeId.GATEWAY, pylon.position, Urgency.HIGH))
+
     cores = self.manager.structures(UnitTypeId.CYBERNETICSCORE).ready
     if not cores.exists:
       return
-
-    numGateways = gateways.amount
-    if not self.manager.already_pending(UnitTypeId.GATEWAY) and (numGateways < self.manager.townhalls.amount * 2 or self.manager.minerals > 1500):
-      requests.append(StructureRequest(UnitTypeId.GATEWAY, pylon.position, Urgency.MEDIUM))
 
     # BUILD A ROBO
     if self.manager.structures(UnitTypeId.ROBOTICSFACILITY).empty:
