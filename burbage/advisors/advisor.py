@@ -7,5 +7,8 @@ class Advisor():
   async def on_upgrade_complete(self, upgrade):
     return
 
+  async def on_unit_destroyed(self, upgrade):
+    return
+
   def tick(self):
     return []

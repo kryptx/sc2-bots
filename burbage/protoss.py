@@ -10,6 +10,7 @@ from sc2.units import Units
 
 from advisors.p.economy import ProtossEconomyAdvisor
 from advisors.p.tactics import ProtossTacticsAdvisor
+from advisors.p.scouting import ProtossScoutingAdvisor
 from advisors.p.vp_strategy import PvPStrategyAdvisor
 
 from common import Urgency
@@ -19,21 +20,39 @@ def urgencyValue(req):
 
 ### EL BOT ###
 
-class MacroManagerBot(sc2.BotAI):
+class AdvisorData():
   def __init__(self):
-    self.economy_advisor = ProtossEconomyAdvisor(self)
-    self.strategy_advisor = PvPStrategyAdvisor(self)
-    self.tactics_advisor = ProtossTacticsAdvisor(self)
-    self.scout_tags = []
-    self.attacker_tags = []
+    self.strategy = dict()
+    self.tactics = dict()
+    self.economy = dict()
+    self.scouting = dict()
+
+class UnitAllocation():
+  def __init__(self):
+    self.strategy = set()
+    self.tactics = set()
+    self.economy = set()
+    self.scouting = set()
+
+class MacroManagerBot(sc2.BotAI):
+
+  def __init__(self):
+    self.advisor_data = AdvisorData()
+    self.tagged_units = UnitAllocation()
     self.rally_point = None
 
     self.desired_supply_buffer = 3
 
+    self.economy_advisor = ProtossEconomyAdvisor(self)
+    self.strategy_advisor = PvPStrategyAdvisor(self)
+    self.tactics_advisor = ProtossTacticsAdvisor(self)
+    self.scouting_advisor = ProtossScoutingAdvisor(self)
+
     self.advisors = [
       self.economy_advisor,
       self.strategy_advisor,
-      self.tactics_advisor
+      self.tactics_advisor,
+      self.scouting_advisor
     ]
 
   async def on_step(self, iteration):
@@ -61,8 +80,12 @@ class MacroManagerBot(sc2.BotAI):
     for advisor in self.advisors:
       await advisor.on_upgrade_complete(upgrade)
 
+  async def on_unit_destroyed(self, unit):
+    for advisor in self.advisors:
+      await advisor.on_unit_destroyed(unit)
+
 def main():
-  sc2.run_game(sc2.maps.get("AcropolisLE"), [
+  sc2.run_game(sc2.maps.get("SequencerLE"), [
     Bot(Race.Protoss, MacroManagerBot()),
     Computer(Race.Protoss, Difficulty.VeryHard)
   ], realtime=False)

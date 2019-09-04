@@ -15,14 +15,13 @@ class ProtossEconomyAdvisor(Advisor):
 
   async def tick(self):
     await self.manager.distribute_workers(resource_ratio=3)
-    requests = []
     assimilators = self.manager.structures(UnitTypeId.ASSIMILATOR)
     nexuses = self.manager.townhalls
     nodes = self.get_mineable_nodes()
 
-    self.check_worker_health(nodes, assimilators, requests)
-    self.check_vespene_status(nexuses, assimilators, requests)
-    self.maybe_expand(nodes, assimilators, requests)
+    requests = self.check_worker_health(nodes, assimilators) \
+      + self.check_vespene_status(nexuses, assimilators) \
+      + self.maybe_expand(nodes, assimilators)
 
     pylon_urgency = self.determine_pylon_urgency()
 
@@ -68,13 +67,16 @@ class ProtossEconomyAdvisor(Advisor):
       if assimilators.empty or assimilators.closer_than(1.0, vg).empty
     ]
 
-  def check_worker_health(self, nodes, assimilators, requests):
+  def check_worker_health(self, nodes, assimilators):
+    requests = []
     numWorkers = self.manager.workers.amount
     if numWorkers < (len(nodes) * 2 + assimilators.amount*3) and numWorkers <= WORKER_LIMIT:
       for nex in self.manager.townhalls.idle:
         requests.append(TrainingRequest(UnitTypeId.PROBE, nex, Urgency.VERYHIGH))
+    return requests
 
-  def check_vespene_status(self, nexuses, assimilators, requests):
+  def check_vespene_status(self, nexuses, assimilators):
+    requests = []
     # try returning workers that are gathering from an assimilator in progress
     not_ready_assimilator_tags = [nra.tag for nra in assimilators.not_ready]
     for worker in self.manager.workers.gathering.filter(lambda w: w.is_idle or w.orders[0].target in not_ready_assimilator_tags):
@@ -102,7 +104,10 @@ class ProtossEconomyAdvisor(Advisor):
         if urgency:
           requests.append(StructureRequest(UnitTypeId.ASSIMILATOR, vgs[0], urgency, exact=True))
 
-  def maybe_expand(self, nodes, assimilators, requests):
+    return requests
+
+  def maybe_expand(self, nodes, assimilators):
+    requests = []
     next_base_location = self.next_base()
     for unit in self.manager.units().closer_than(5, next_base_location):
       if unit.is_idle:
@@ -125,6 +130,8 @@ class ProtossEconomyAdvisor(Advisor):
         nexus_urgency += 2
 
       requests.append(ExpansionRequest(next_base_location, nexus_urgency))
+
+    return requests
 
   def determine_pylon_urgency(self):
     pylon_urgency = Urgency.NONE

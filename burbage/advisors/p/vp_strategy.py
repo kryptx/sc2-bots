@@ -41,19 +41,19 @@ class PvPStrategyAdvisor(Advisor):
 
   def allocate_units(self):
     # Populate values for tactical advisor to read
-    my_army = self.manager.units({ UnitTypeId.ZEALOT, UnitTypeId.STALKER, UnitTypeId.ARCHON })
+    my_army = self.manager.units({
+      UnitTypeId.ZEALOT,
+      UnitTypeId.STALKER,
+      UnitTypeId.ARCHON
+    }).tags_not_in(self.manager.tagged_units.scouting)
+
     if my_army.idle.amount >= 35:
-      self.manager.attacker_tags = {
+      self.manager.tagged_units.strategy = set(
         u.tag
         for u in self.manager.units({ UnitTypeId.ZEALOT, UnitTypeId.STALKER, UnitTypeId.ARCHON })
-      }
+      )
     else:
-      self.manager.attacker_tags = []
-
-    self.manager.scout_tags = {
-      u.tag
-      for u in self.manager.units(UnitTypeId.OBSERVER)
-    }
+      self.manager.tagged_units.strategy = set()
 
     # Morph any archons
     for templar in self.manager.units(UnitTypeId.HIGHTEMPLAR):

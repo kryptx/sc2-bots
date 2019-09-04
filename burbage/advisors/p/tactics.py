@@ -13,7 +13,6 @@ class ProtossTacticsAdvisor(Advisor):
     self.attack_targets = []
 
   async def tick(self):
-    self.scout()
     self.attack()
     self.arrange()
     return []
@@ -27,21 +26,8 @@ class ProtossTacticsAdvisor(Advisor):
         (scout.can_be_attacked and e.target_in_range(scout, bonus_distance=1))
       ))
 
-  def scout(self):
-    for scout in self.manager.units().tags_in(self.manager.scout_tags):
-      target = None
-      danger = self.find_danger(scout)
-      if danger and danger.exists:
-        target = scout.position.towards(danger.center, -2)
-      elif scout.is_idle:
-        scout_locations = list(self.manager.expansion_locations.keys()) + self.manager.enemy_start_locations
-        target = scout_locations[random.randint(0, len(scout_locations) - 1)]
-
-      if target:
-        self.manager.do(scout.move(target))
-
   def attack(self):
-    for attacker in self.manager.units().tags_in(self.manager.attacker_tags).idle:
+    for attacker in self.manager.units().tags_in(self.manager.tagged_units.strategy).idle:
       attack_location = self.manager.enemy_start_locations[0]
       if self.manager.enemy_structures.exists:
         attack_location = self.manager.enemy_structures.random.position
@@ -56,8 +42,8 @@ class ProtossTacticsAdvisor(Advisor):
       UnitTypeId.STALKER,
       UnitTypeId.ARCHON
     }).tags_not_in(
-      list(self.manager.attacker_tags) +
-      list(self.manager.scout_tags)
+      list(self.manager.tagged_units.strategy) +
+      list(self.manager.tagged_units.scouting)
     )
 
     if available.idle.exists:
