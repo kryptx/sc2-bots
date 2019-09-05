@@ -3,6 +3,7 @@ import random
 import sc2
 from sc2.constants import *
 from sc2.position import Point2
+from sc2.units import Units
 
 from burbage.advisors.advisor import Advisor
 from burbage.common import Urgency, TrainingRequest, StructureRequest, ExpansionRequest, list_diff, list_flatten
@@ -12,9 +13,80 @@ WORKER_LIMIT = 66
 class ProtossEconomyAdvisor(Advisor):
   def __init__(self, manager):
     super().__init__(manager)
+    self.last_distribute = 0
+
+  def distribute_workers(self):
+    if self.manager.time - self.last_distribute < 5:
+      return
+
+    self.last_distribute = self.manager.time
+    bad_assimilators = self.manager.structures(
+      UnitTypeId.ASSIMILATOR
+    ).filter(
+      lambda a: all(ex.is_further_than(15, a) for ex in self.manager.owned_expansions.keys())
+    )
+
+    needy_assimilators = self.manager.structures(
+      UnitTypeId.ASSIMILATOR
+    ).ready.tags_not_in([
+      a.tag
+      for a in bad_assimilators
+    ]).filter(
+      lambda a: a.assigned_harvesters < 3
+    )
+
+    acceptable_mineral_tags = [
+      f.tag
+      for f in self.manager.mineral_field.filter(
+        lambda node: any([
+          nex.position.is_closer_than(15, node.position)
+          for nex in self.manager.townhalls.ready
+        ])
+      )
+    ]
+
+    unacceptable_mineral_tags = [ f.tag for f in self.manager.mineral_field.tags_not_in(acceptable_mineral_tags) ]
+
+    bad_workers = self.manager.workers.filter(lambda p:
+      # Grab these suckers first
+      p.is_idle or
+      (p.is_gathering and p.orders[0].target in unacceptable_mineral_tags) or
+      (p.is_gathering and p.orders[0].target in bad_assimilators)
+    )
+
+    bad_workers += Units(list_flatten([
+        self.manager.workers.filter(
+          lambda probe: probe.is_carrying_minerals and probe.orders and probe.orders[0].target == nex.tag
+        )[0:nex.surplus_harvesters] for nex in self.manager.townhalls.filter(lambda nex: nex.surplus_harvesters > 0)
+    ]), self.manager)
+
+    mining_workers = self.manager.workers.filter(lambda p:
+      # if more are needed, this is okay too
+      p.is_gathering and p.orders[0].target in acceptable_mineral_tags or p.is_carrying_minerals
+    )
+
+    usable_workers = bad_workers + mining_workers
+
+    taken_workers = 0
+    def get_workers(num):
+      nonlocal taken_workers
+      if taken_workers + num > usable_workers.amount:
+        return None
+      taken_workers += num
+      return usable_workers[ taken_workers - num : num ]
+
+    for needy_assimilator in needy_assimilators:
+      workers = get_workers(3 - needy_assimilator.assigned_harvesters)
+      for worker in workers:
+        self.manager.do(worker.gather(needy_assimilator))
+
+    if taken_workers < bad_workers.amount and acceptable_mineral_tags:
+      remaining_bad_workers = get_workers(bad_workers.amount - taken_workers)
+      for worker in remaining_bad_workers:
+        self.manager.do(worker.gather(self.manager.mineral_field.tags_in(acceptable_mineral_tags).random))
 
   async def tick(self):
-    await self.manager.distribute_workers(resource_ratio=3)
+    self.distribute_workers()
     assimilators = self.manager.structures(UnitTypeId.ASSIMILATOR)
     nexuses = self.manager.townhalls
     nodes = self.get_mineable_nodes()
@@ -45,12 +117,12 @@ class ProtossEconomyAdvisor(Advisor):
     return Point2.center([nex.position for nex in self.manager.townhalls])
 
   def next_base(self):
-    centroid = self.bases_centroid()
+    centroid = self.bases_centroid() if self.manager.townhalls.amount > 1 else self.manager.main_base_ramp.bottom_center
     def distance_to_home(location):
       return centroid.distance_to(location)
 
     all_possible_expansions = [loc for loc in list(self.manager.expansion_locations.keys()) if loc not in self.manager.owned_expansions.keys()]
-    return sorted(all_possible_expansions, key=distance_to_home)[0]
+    return min(all_possible_expansions, key=distance_to_home)
 
   def sum_mineral_contents(self, nodes):
     return sum([field.mineral_contents for field in nodes])
@@ -63,7 +135,7 @@ class ProtossEconomyAdvisor(Advisor):
   def get_empty_geysers(self, assimilators):
     return [
       vg for vg in
-      list_flatten([ self.manager.vespene_geyser.closer_than(15, th) for th in self.manager.townhalls ])
+      list_flatten([ self.manager.vespene_geyser.closer_than(15, th) for th in self.manager.townhalls.ready ])
       if assimilators.empty or assimilators.closer_than(1.0, vg).empty
     ]
 
@@ -81,28 +153,17 @@ class ProtossEconomyAdvisor(Advisor):
     not_ready_assimilator_tags = [nra.tag for nra in assimilators.not_ready]
     for worker in self.manager.workers.gathering.filter(lambda w: w.is_idle or w.orders[0].target in not_ready_assimilator_tags):
       self.manager.do(worker.gather(self.manager.mineral_field.closest_to(worker)))
-    # Build enough assimilators to keep up with demand. more than that if we're rich.
-    if assimilators.amount < nexuses.ready.amount * 2:
-      vgs = self.get_empty_geysers(assimilators)
-      if vgs:
-        # Default to Low urgency, increase if we're behind
-        urgency = Urgency.LOW
-        gates = self.manager.structures({ UnitTypeId.GATEWAY, UnitTypeId.WARPGATE })
-        if gates.amount < 2 and assimilators.amount >= gates.amount:
-          # keep the number of gateways ahead until there are 2 of each
-          urgency = Urgency.NONE
 
-        elif nexuses.ready.amount <= 2:
-          urgency = Urgency.MEDIUM
+    vgs = self.get_empty_geysers(assimilators)
+    if vgs:
+      urgency = Urgency.HIGH
+      gates = self.manager.structures({ UnitTypeId.GATEWAY, UnitTypeId.WARPGATE })
+      if gates.amount < 2 and assimilators.amount >= gates.amount:
+        # keep the number of gateways ahead until there are 2 of each
+        urgency = Urgency.NONE
 
-        elif nexuses.ready.amount == 3:
-          urgency = Urgency.MEDIUMHIGH
-
-        elif nexuses.ready.amount >= 4:
-          urgency = Urgency.HIGH
-
-        if urgency:
-          requests.append(StructureRequest(UnitTypeId.ASSIMILATOR, vgs[0], urgency, exact=True))
+      if urgency:
+        requests.append(StructureRequest(UnitTypeId.ASSIMILATOR, vgs[0], urgency, exact=True))
 
     return requests
 

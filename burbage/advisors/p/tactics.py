@@ -17,15 +17,6 @@ class ProtossTacticsAdvisor(Advisor):
     self.arrange()
     return []
 
-  def find_danger(self, scout):
-    return (
-        self.manager.enemy_units +
-        self.manager.enemy_structures
-      ).filter(lambda e: (
-        (e.is_detector and scout.is_cloaked and e.distance_to(scout) <= e.sight_range + 1) or
-        (scout.can_be_attacked and e.target_in_range(scout, bonus_distance=1))
-      ))
-
   def attack(self):
     for attacker in self.manager.units().tags_in(self.manager.tagged_units.strategy).idle:
       attack_location = self.manager.enemy_start_locations[0]
@@ -48,5 +39,5 @@ class ProtossTacticsAdvisor(Advisor):
 
     if available.idle.exists:
       for unit in available.idle.further_than(6, self.manager.rally_point):
-        self.manager.do(unit.move(self.manager.rally_point))
+        self.manager.do(unit.attack(self.manager.rally_point))
 

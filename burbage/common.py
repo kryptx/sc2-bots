@@ -23,6 +23,17 @@ class TrainingRequest():
   async def fulfill(self, bot):
     return self.structure.train(self.unit_type)
 
+class WarpInRequest():
+  def __init__(self, unit_type, warpgate, location, urgency):
+    self.unit_type = unit_type
+    self.warpgate = warpgate
+    self.location = location
+    self.urgency = urgency
+    self.expense = unit_type
+
+  async def fulfill(self, bot):
+    return self.warpgate.warp_in(self.unit_type, self.location)
+
 class StructureRequest():
   def __init__(self, structure_type, location, urgency=Urgency.LOW, exact=False):
     self.location = location

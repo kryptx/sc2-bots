@@ -57,7 +57,7 @@ class MacroManagerBot(sc2.BotAI):
 
   async def on_step(self, iteration):
     requests = []
-    self.desired_supply_buffer = math.sqrt(self.supply_used)
+    self.desired_supply_buffer = 2 + self.structures({ UnitTypeId.WARPGATE, UnitTypeId.GATEWAY }).amount * 2.5
     for advisor in self.advisors:
       advisorResult = await advisor.tick()
       requests.extend(advisorResult)
@@ -85,7 +85,7 @@ class MacroManagerBot(sc2.BotAI):
       await advisor.on_unit_destroyed(unit)
 
 def main():
-  sc2.run_game(sc2.maps.get("SequencerLE"), [
+  sc2.run_game(sc2.maps.get("ProximaStationLE"), [
     Bot(Race.Protoss, MacroManagerBot()),
     Computer(Race.Protoss, Difficulty.VeryHard)
   ], realtime=False)
