@@ -19,6 +19,9 @@ class ProtossEconomyAdvisor(Advisor):
     if self.manager.time - self.last_distribute < 5:
       return
 
+    if not self.manager.townhalls.ready.exists:
+      return
+
     self.last_distribute = self.manager.time
     bad_assimilators = self.manager.structures(
       UnitTypeId.ASSIMILATOR
@@ -35,14 +38,18 @@ class ProtossEconomyAdvisor(Advisor):
       lambda a: a.assigned_harvesters < 3
     )
 
-    acceptable_mineral_tags = [
+    acceptable_minerals = self.manager.mineral_field.filter(
+      lambda node: any([
+        nex.position.is_closer_than(15, node.position)
+        for nex in self.manager.townhalls.ready
+      ])
+    )
+
+    acceptable_mineral_tags = [ f.tag for f in acceptable_minerals ]
+    needy_mineral_tags = [
       f.tag
-      for f in self.manager.mineral_field.filter(
-        lambda node: any([
-          nex.position.is_closer_than(15, node.position)
-          for nex in self.manager.townhalls.ready
-        ])
-      )
+      for f in acceptable_minerals
+      if self.manager.townhalls.closest_to(f.position).surplus_harvesters < 0
     ]
 
     unacceptable_mineral_tags = [ f.tag for f in self.manager.mineral_field.tags_not_in(acceptable_mineral_tags) ]
@@ -54,7 +61,7 @@ class ProtossEconomyAdvisor(Advisor):
       (p.is_gathering and p.orders[0].target in bad_assimilators)
     )
 
-    bad_workers += Units(list_flatten([
+    excess_workers = Units(list_flatten([
         self.manager.workers.filter(
           lambda probe: probe.is_carrying_minerals and probe.orders and probe.orders[0].target == nex.tag
         )[0:nex.surplus_harvesters] for nex in self.manager.townhalls.filter(lambda nex: nex.surplus_harvesters > 0)
@@ -63,9 +70,9 @@ class ProtossEconomyAdvisor(Advisor):
     mining_workers = self.manager.workers.filter(lambda p:
       # if more are needed, this is okay too
       p.is_gathering and p.orders[0].target in acceptable_mineral_tags or p.is_carrying_minerals
-    )
+    ) - (bad_workers + excess_workers)
 
-    usable_workers = bad_workers + mining_workers
+    usable_workers = bad_workers + excess_workers + mining_workers
 
     taken_workers = 0
     def get_workers(num):
@@ -83,6 +90,11 @@ class ProtossEconomyAdvisor(Advisor):
     if taken_workers < bad_workers.amount and acceptable_mineral_tags:
       remaining_bad_workers = get_workers(bad_workers.amount - taken_workers)
       for worker in remaining_bad_workers:
+        self.manager.do(worker.gather(self.manager.mineral_field.tags_in(acceptable_mineral_tags).random))
+
+    if taken_workers < bad_workers.amount + excess_workers.amount and needy_mineral_tags:
+      remaining_excess_workers = get_workers(bad_workers.amount + excess_workers.amount - taken_workers)
+      for worker in remaining_excess_workers:
         self.manager.do(worker.gather(self.manager.mineral_field.tags_in(acceptable_mineral_tags).random))
 
   async def tick(self):

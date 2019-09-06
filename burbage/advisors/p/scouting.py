@@ -281,11 +281,9 @@ class ProtossScoutingAdvisor(Advisor):
     if mission.mission == ScoutingMissionType.EXPLORE:
       mission.targets = list(self.manager.expansion_locations.keys())
     if mission.mission == ScoutingMissionType.EXPANSION_HUNT:
-      print("generating targets for mission type " + str(mission.mission))
       enemy_bases = [b.position for b in self.manager.enemy_structures(BASE_STRUCTURES)]
       our_bases = list(self.manager.owned_expansions.keys())
       mission.targets = [ p for p in self.manager.expansion_locations.keys() if p not in enemy_bases + our_bases ]
-      print("generated " + str(len(mission.targets)) + "targets")
     if mission.mission == ScoutingMissionType.DETECT_CHEESE:
       # if the situation is anything other than a single base in the main,
       # this *might* be hit once but that scout is going home soon
