@@ -26,14 +26,13 @@ class Race(enum.IntFlag):
   RANDOM = 4
 
 BASE_STRUCTURES = { UnitTypeId.NEXUS, UnitTypeId.COMMANDCENTER, UnitTypeId.HATCHERY, UnitTypeId.LAIR, UnitTypeId.HIVE }
-TECH_STRUCTURES = { UnitTypeId.LAIR, UnitTypeId.CYBERNETICSCORE, UnitTypeId.FACTORY }
+TECH_STRUCTURES = { UnitTypeId.LAIR, UnitTypeId.ROACHWARREN, UnitTypeId.CYBERNETICSCORE, UnitTypeId.FACTORY, UnitTypeId.STARPORT }
 
 class ScoutingMission():
   def __init__(self, mission_type, targets=[], unit_type=None):
     self.unit = None
     self.targets = targets
-    self.last_retreat = 0
-    self.evading_since = 0
+    self.last_retreat = 1 # should be truthy
     self.mission = mission_type
     self.last_positions = []
     self.complete = False
@@ -68,12 +67,12 @@ class ProtossScoutingAdvisor(Advisor):
       elif self.manager.enemy_units.exists:
         self.enemy_race = self.manager.enemy_units.random.race
 
-    self.update_tagged_scouts()    # might not need this depending on how reliable on_unit_destroyed is
-    self.update_enemy_unit_data()  # tracking every enemy unit we've seen
-    self.evaluate_rush_status()    # interpret data from scouts to determine if they are rushing
-    self.evaluate_mission_status() # make sure all the scouts are safe and on track
+    self.update_tagged_scouts()       # might not need this depending on how reliable on_unit_destroyed is
+    self.update_enemy_unit_data()     # tracking every enemy unit we've seen
+    self.evaluate_rush_status()       # interpret data from scouts to determine if they are rushing
+    self.evaluate_mission_status()    # make sure all the scouts are safe and on track
     self.audit_missions()
-    requests = self.audit_structures()        # we'll demand robotics if other advisors don't
+    requests = self.audit_structures()         # we'll demand robotics if other advisors don't
     requests += self.build_robotics_units()    # observers only
     return requests
 
@@ -108,7 +107,13 @@ class ProtossScoutingAdvisor(Advisor):
       self.missions.append(ScoutingMission(ScoutingMissionType.EXPANSION_HUNT))
 
     if self.manager.time > 240 and len([ m for m in self.missions if m.mission == ScoutingMissionType.WATCH_ENEMY_ARMY ]) < 1:
-      self.missions.append(ScoutingMission(ScoutingMissionType.WATCH_ENEMY_ARMY, unit_type=UnitTypeId.OBSERVER))
+      self.missions.append(ScoutingMission(ScoutingMissionType.WATCH_ENEMY_ARMY))
+
+    if self.manager.units(UnitTypeId.OBSERVER).idle.exists and any(m.unit and m.unit.type_id != UnitTypeId.OBSERVER for m in self.missions):
+      missions = list(self.missions)
+      broken_mission = next(m for m in missions if m.unit.type_id != UnitTypeId.OBSERVER)
+      self.release_scout(broken_mission.unit)
+      broken_mission.unit = None
 
   def enemy_army_size(self):
     return len(self.manager.advisor_data.scouting['enemy_army'])
@@ -151,7 +156,9 @@ class ProtossScoutingAdvisor(Advisor):
   def release_scout(self, scout):
     self.manager.tagged_units.scouting.discard(scout.tag)
     if scout.type_id == UnitTypeId.PROBE:
-      self.manager.do(scout.gather(self.manager.mineral_field.closer_than(15, self.manager.townhalls.ready.random).random))
+      mineral_field = self.manager.mineral_field.filter(lambda f: any(th.position.is_closer_than(15, f.position) for th in self.manager.townhalls))
+      if mineral_field.exists:
+        self.manager.do(scout.gather(mineral_field.random))
     else:
       self.manager.do(scout.move(self.manager.rally_point))
 
@@ -166,15 +173,14 @@ class ProtossScoutingAdvisor(Advisor):
         known_not_rushing = True
         # one last chance, though.
 
-      if enemy_bases.amount > 1:
-        # they expanded
+      if enemy_bases.amount > 1 or \
+         enemy_bases.exists and enemy_bases.first.position not in self.manager.enemy_start_locations or \
+         self.manager.enemy_structures(TECH_STRUCTURES).exists:
+        # they expanded or are building at least basic tech.
         known_not_rushing = True
       elif now < 120 and self.enemy_army_dps() > 90:
         # whoa, that's a lot of ... something
         known_rushing = True
-      elif enemy_bases.exists and enemy_bases.first.position not in self.manager.enemy_start_locations:
-        # looks like an expansion to me
-        known_not_rushing = True
       else:
         # we haven't found more than one base and if we found one, it's in the start location. Look closer...
         if self.enemy_race == Race.TERRAN:
@@ -215,7 +221,11 @@ class ProtossScoutingAdvisor(Advisor):
         mission.unit = None
         continue
 
-      scout = self.manager.units.tags_in([ mission.unit.tag ]).first if mission.unit else None
+      scout = None
+      if mission.unit:
+        scouts = self.manager.units.tags_in([ mission.unit.tag ])
+        if scouts.exists:
+          scout = scouts.first
 
       if mission.mission == ScoutingMissionType.FIND_BASES and enemy_bases.exists:
         # done with that one, aren't we
@@ -232,6 +242,9 @@ class ProtossScoutingAdvisor(Advisor):
         enemy_bases.exists and enemy_bases.closer_than(1.0, mission.targets[0]).exists:
         self.next_target(mission)
 
+      if mission.complete:
+        continue
+
       target = mission.targets[0]
       if not target:
         continue
@@ -246,25 +259,14 @@ class ProtossScoutingAdvisor(Advisor):
       danger = self.find_danger(scout, bonus_range=3)
 
       if danger.exists:
-        if mission.mission == ScoutingMissionType.WATCH_ENEMY_ARMY:
-          if danger.amount > 5:
-            target = scout.position.towards(danger.center, -2)
-            mission.last_retreat = now
-
-        elif danger.amount > 2 and now - mission.last_retreat >= 5:
-          # TRY THE NEXT ONE
-          self.next_target(mission)
-          mission.last_retreat = now
-        else:
-          if not mission.evading_since:
-            mission.evading_since = now
-          elif now - mission.evading_since > 5:
-            self.next_target(mission)
-
-        # but no matter where we're going we better try to get away from these clowns
+        # evade. If there's more than 2, go to the next target
+        # if the 1 chases long enough, give up and try the next
         target = scout.position.towards(danger.center, -2)
+        if danger.amount > 2:
+          if mission.last_retreat and now - mission.last_retreat > 2:
+            self.next_target(mission)
+          mission.last_retreat = now
       else:
-        mission.evading_since = None
         if mission.mission == ScoutingMissionType.WATCH_ENEMY_ARMY and mission.last_retreat:
           target = None
           if now - mission.last_retreat > 10:
@@ -311,12 +313,11 @@ class ProtossScoutingAdvisor(Advisor):
       if known_enemy_units.exists:
         mission.targets = [ known_enemy_units.center ]
       else:
-        mission.targets = [ self.manager.rally_point ]
+        mission.targets = [ b.position for b in self.manager.enemy_structures(BASE_STRUCTURES) ]
 
   def next_target(self, mission):
     if mission.targets:
       mission.targets.pop(0)
-      mission.evading_since = None
     if not mission.targets:
       self.generate_targets(mission)
     if not mission.targets:
@@ -325,14 +326,7 @@ class ProtossScoutingAdvisor(Advisor):
   def find_danger(self, scout, bonus_range=1):
     enemies = self.manager.enemy_units + self.manager.enemy_structures
     enemies_that_could_hit_scout = enemies.filter(lambda e: (e.ground_dps > 5 or e.air_dps > 5) and e.target_in_range(scout, bonus_distance=bonus_range))
-    detectors_in_sight_range = enemies.filter(lambda e: e.is_detector and e.distance_to(scout) <= e.sight_range + bonus_range)
-
-    if enemies_that_could_hit_scout.amount == 0:
-      return enemies_that_could_hit_scout
-    elif scout.is_cloaked and detectors_in_sight_range.amount <= 1:
-      return detectors_in_sight_range
-    else:
-      return enemies_that_could_hit_scout
+    return enemies_that_could_hit_scout
 
   def build_robotics_units(self):
     requests = []

@@ -11,6 +11,7 @@ class ProtossTacticsAdvisor(Advisor):
   def __init__(self, manager):
     super().__init__(manager)
     self.attack_targets = []
+    self.last_attack = 0
 
   async def tick(self):
     self.attack()
@@ -18,11 +19,24 @@ class ProtossTacticsAdvisor(Advisor):
     return []
 
   def attack(self):
+    now = self.manager.time
+    if now - self.last_attack < 2:
+      return
+    self.last_attack = now
     for attacker in self.manager.units().tags_in(self.manager.tagged_units.strategy).idle:
       attack_location = self.manager.enemy_start_locations[0]
       if self.manager.enemy_structures.exists:
-        attack_location = self.manager.enemy_structures.random.position
+        attack_location = self.manager.enemy_structures({
+          UnitTypeId.NEXUS,
+          UnitTypeId.COMMANDCENTER,
+          UnitTypeId.HATCHERY,
+          UnitTypeId.LAIR,
+          UnitTypeId.HIVE
+        }).random.position
       self.manager.do(attacker.attack(attack_location))
+    for mission in self.manager.strategy_advisor.defense.values():
+      for defender in mission.defenders:
+        self.manager.do(defender.attack(mission.target.position))
 
   def arrange(self):
     if not self.manager.rally_point:

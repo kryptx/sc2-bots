@@ -16,19 +16,24 @@ class ProtossEconomyAdvisor(Advisor):
     self.last_distribute = 0
 
   def distribute_workers(self):
+    # Only do anything once every 5 seconds
     if self.manager.time - self.last_distribute < 5:
       return
 
+    self.last_distribute = self.manager.time
+
+    # Kinda hard to gather anything without a nexus
     if not self.manager.townhalls.ready.exists:
       return
 
-    self.last_distribute = self.manager.time
+    # assimilators probably at bases that have been destroyed
     bad_assimilators = self.manager.structures(
       UnitTypeId.ASSIMILATOR
     ).filter(
       lambda a: all(ex.is_further_than(15, a) for ex in self.manager.owned_expansions.keys())
     )
 
+    # assimilators that don't have enough harvesters
     needy_assimilators = self.manager.structures(
       UnitTypeId.ASSIMILATOR
     ).ready.tags_not_in([
@@ -38,6 +43,7 @@ class ProtossEconomyAdvisor(Advisor):
       lambda a: a.assigned_harvesters < 3
     )
 
+    # mineral patches near one of our bases
     acceptable_minerals = self.manager.mineral_field.filter(
       lambda node: any([
         nex.position.is_closer_than(15, node.position)
@@ -45,6 +51,7 @@ class ProtossEconomyAdvisor(Advisor):
       ])
     )
 
+    # tag collections for easy selection and matching
     acceptable_mineral_tags = [ f.tag for f in acceptable_minerals ]
     needy_mineral_tags = [
       f.tag
@@ -52,6 +59,7 @@ class ProtossEconomyAdvisor(Advisor):
       if self.manager.townhalls.closest_to(f.position).surplus_harvesters < 0
     ]
 
+    # anywhere else is strictly forbidden
     unacceptable_mineral_tags = [ f.tag for f in self.manager.mineral_field.tags_not_in(acceptable_mineral_tags) ]
 
     bad_workers = self.manager.workers.filter(lambda p:
@@ -61,12 +69,15 @@ class ProtossEconomyAdvisor(Advisor):
       (p.is_gathering and p.orders[0].target in bad_assimilators)
     )
 
+    # up to N workers, where N is the number of surplus harvesters, from each nexus where there are any
+    # may not grab them all every time (it gets only the ones returning minerals), but it'll get enough
     excess_workers = Units(list_flatten([
         self.manager.workers.filter(
           lambda probe: probe.is_carrying_minerals and probe.orders and probe.orders[0].target == nex.tag
         )[0:nex.surplus_harvesters] for nex in self.manager.townhalls.filter(lambda nex: nex.surplus_harvesters > 0)
     ]), self.manager)
 
+    # to fill up your first assimilator, you'll need these
     mining_workers = self.manager.workers.filter(lambda p:
       # if more are needed, this is okay too
       p.is_gathering and p.orders[0].target in acceptable_mineral_tags or p.is_carrying_minerals
@@ -78,7 +89,7 @@ class ProtossEconomyAdvisor(Advisor):
     def get_workers(num):
       nonlocal taken_workers
       if taken_workers + num > usable_workers.amount:
-        return None
+        return []
       taken_workers += num
       return usable_workers[ taken_workers - num : num ]
 
@@ -123,7 +134,12 @@ class ProtossEconomyAdvisor(Advisor):
     return requests
 
   def resource_centroid(self, townhall):
-    return Point2.center([r.position for r in self.manager.mineral_field.closer_than(15, townhall)])
+    nodes = self.manager.mineral_field.closer_than(15, townhall)
+    if nodes.exists:
+      return Point2.center([ r.position for r in nodes ])
+    else:
+      return self.manager.map_center
+
 
   def bases_centroid(self):
     return Point2.center([nex.position for nex in self.manager.townhalls])

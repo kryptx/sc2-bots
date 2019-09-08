@@ -8,14 +8,42 @@ from sc2.units import Units
 from burbage.advisors.advisor import Advisor
 from burbage.common import Urgency, TrainingRequest, WarpInRequest, StructureRequest, ResearchRequest, list_flatten
 
+BASE_DEFENSE_RADIUS = 35
+
+class DefenseMission():
+  def __init__(self, target):
+    self.last_visible = 0
+    self.target = target
+    self.defenders = []
+    self.desired_unit_quantity = 2
+    self.enemy_killed = False
+
+  def is_complete(self, now, bases):
+    return self.enemy_killed or now - self.last_visible > 10 or all(base.position.is_further_than(BASE_DEFENSE_RADIUS, self.target.position) for base in bases)
+
 class PvPStrategyAdvisor(Advisor):
   def __init__(self, manager):
     super().__init__(manager)
     self.warpgate_complete = False
+    self.defense = dict() # enemy_tag: DefenseMission
+    self.last_defense_check = dict() # enemy tag: time
+
+  @property
+  def defenders(self):
+    return list_flatten([ mission.defenders for mission in self.defense.values() ])
 
   async def on_upgrade_complete(self, upgrade):
     if upgrade == UpgradeId.WARPGATERESEARCH:
       self.warpgate_complete = True
+
+  async def on_unit_destroyed(self, unit):
+    if unit in self.defense:
+      self.defense[unit].enemy_killed = True
+    else:
+      for mission in self.defense.values():
+        if unit in mission.defenders:
+          mission.defenders.remove(unit)
+          break
 
   async def tick(self):
     self.manager.rally_point = self.determine_rally_point()
@@ -39,6 +67,34 @@ class PvPStrategyAdvisor(Advisor):
       if gate.exists:
         self.manager.do(nexus(AbilityId.EFFECT_CHRONOBOOSTENERGYCOST, gate.random))
 
+  def assign_defenders(self, unit):
+    if unit.tag in self.last_defense_check and self.manager.time - self.last_defense_check[unit.tag] < 2:
+      return
+    self.last_defense_check[unit.tag] = self.manager.time
+    mission = self.defense[unit.tag] if unit.tag in self.defense else DefenseMission(unit)
+    self.defense[unit.tag] = mission
+
+    mission.last_visible = self.manager.time
+    current_defenders = self.manager.units.tags_in([ d.tag for d in mission.defenders ])
+
+    if current_defenders.amount >= mission.desired_unit_quantity:
+      return
+
+    ## DID YOU GET AN ERROR ABOUT AN EMPTY UNITS OBJECT?
+    # The python -O option will ignore the assert. it's perfectly safe.
+    existing_defenders = [ d.tag for d in self.defenders ]
+    stalkers = self.manager.units({ UnitTypeId.STALKER }).tags_not_in(existing_defenders).closest_n_units(unit.position, 2)
+    archons = self.manager.units({ UnitTypeId.ARCHON }).tags_not_in(existing_defenders).closest_n_units(unit.position, 2)
+    zealots = self.manager.units({ UnitTypeId.ZEALOT }).tags_not_in(existing_defenders).closest_n_units(unit.position, 2)
+    defenders = stalkers + archons + zealots  # ordered
+
+    #print("mission " + str(unit.tag) + " defenders size is now " + str(len(mission.defenders)))
+    #print("mission " + str(unit.tag) + " has desired quantity of " + str(mission.desired_unit_quantity))
+    needed_quantity = mission.desired_unit_quantity - current_defenders.amount
+    #print("mission " + str(unit.tag) + " needs " + str(needed_quantity) + " more defenders")
+    mission.defenders.extend(defenders[:needed_quantity])
+    #print("mission " + str(unit.tag) + " defenders size is now " + str(len(mission.defenders)))
+
   def allocate_units(self):
     # Populate values for tactical advisor to read
     my_army = self.manager.units({
@@ -60,24 +116,14 @@ class PvPStrategyAdvisor(Advisor):
       self.manager.do(templar(AbilityId.MORPH_ARCHON))
 
   def handle_threats(self):
-    enemy_units = self.manager.enemy_units
-    if enemy_units.empty:
-      return
-    threatening_units = Units(list_flatten([enemy_units.closer_than(35, nex) for nex in self.manager.townhalls]), self.manager)
-    available_defenders = self.manager.units({ UnitTypeId.ZEALOT, UnitTypeId.STALKER, UnitTypeId.ARCHON }).tags_not_in(
-      list(self.manager.tagged_units.scouting) + list(self.manager.tagged_units.strategy)
-    )
+    threats = list_flatten([self.manager.enemy_units.closer_than(40, nex) for nex in self.manager.townhalls])
+    for threat in threats:
+      self.assign_defenders(threat)
 
-    if available_defenders.empty or threatening_units.empty:
-      return
-
-    nearby_defenders = available_defenders.closer_than(20, threatening_units.center)
-    if threatening_units and nearby_defenders.amount >= threatening_units.amount * 0.8:
-      for defender in available_defenders:
-        self.manager.do(defender.attack(threatening_units.random.position))
-    else:
-      for defender in available_defenders:
-        self.manager.do(defender.attack(self.manager.townhalls.closest_to(threatening_units.center).position.towards(threatening_units.center, -5)))
+    now = self.manager.time
+    for enemy in list(self.defense.keys()):
+      if self.defense[enemy].is_complete(now, self.manager.townhalls):
+        del self.defense[enemy]
 
   def army_dps(self):
     return sum([ max(u.ground_dps, u.air_dps) for u in self.manager.units if u.ground_dps > 5 or u.air_dps > 0 ])
@@ -86,9 +132,7 @@ class PvPStrategyAdvisor(Advisor):
     return sum([ u.health_max + u.shield_max for u in self.manager.units if u.ground_dps > 5 or u.air_dps > 0 ])
 
   def fuckedness_ratio(self):
-    if self.army_dps() == 0 or self.army_max_hp() == 0:
-      return 2
-    return (self.manager.scouting_advisor.enemy_army_dps() * self.manager.scouting_advisor.enemy_army_max_hp()) / (self.army_dps() * self.army_max_hp())
+    return (self.manager.scouting_advisor.enemy_army_dps() * self.manager.scouting_advisor.enemy_army_max_hp() + 100) / (self.army_dps() * self.army_max_hp() + 100)
 
   async def build_gateway_units(self):
     requests = []
@@ -104,7 +148,9 @@ class PvPStrategyAdvisor(Advisor):
     if self.manager.time < 240 and self.manager.advisor_data.scouting['enemy_is_rushing']:
       army_priority += 2
 
-    army_priority += min(Urgency.EXTREME, max(0, math.floor(self.fuckedness_ratio() * 3)))
+    # Veryhigh is still only 2 (LOW) away from LIFEORDEATH
+    # i.e. even if no cheese it only takes a ratio of 3 to be in a life or death urgency situation (will cut probes)
+    army_priority += min(Urgency.VERYHIGH, max(0, math.floor(self.fuckedness_ratio() * 3)))
     urgency = Urgency.LOW + army_priority
 
     counts = {
@@ -123,8 +169,6 @@ class PvPStrategyAdvisor(Advisor):
       unit_priority = [ UnitTypeId.STALKER ]
       if counts[UnitTypeId.ZEALOT] < counts[UnitTypeId.STALKER]:
         unit_priority.insert(0, UnitTypeId.ZEALOT)
-      else:
-        unit_priority.append(UnitTypeId.ZEALOT)
 
       if archives.exists:
         unit_priority.insert(0, UnitTypeId.HIGHTEMPLAR)

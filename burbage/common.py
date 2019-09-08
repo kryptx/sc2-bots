@@ -43,7 +43,15 @@ class StructureRequest():
     self.exact = exact
 
   async def fulfill(self, bot):
-    worker = bot.workers.closest_to(self.location)
+    worker = bot.workers.filter(lambda w: w.is_idle or w.is_collecting)
+    if not worker.exists:
+      worker = bot.workers
+
+    if not worker.exists:
+      # womp womp
+      return
+
+    worker = worker.closest_to(self.location)
     if self.exact:
       return worker.build(self.structure_type, self.location)
     else:
