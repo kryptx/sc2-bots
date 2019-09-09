@@ -8,6 +8,7 @@ from sc2.units import Units
 from burbage.advisors.advisor import Advisor
 from burbage.common import Urgency, TrainingRequest, StructureRequest, ExpansionRequest, list_diff, list_flatten
 
+BASE_STRUCTURES = { UnitTypeId.NEXUS, UnitTypeId.COMMANDCENTER, UnitTypeId.HATCHERY, UnitTypeId.LAIR, UnitTypeId.HIVE }
 WORKER_LIMIT = 66
 
 class ProtossEconomyAdvisor(Advisor):
@@ -91,7 +92,7 @@ class ProtossEconomyAdvisor(Advisor):
       if taken_workers + num > usable_workers.amount:
         return []
       taken_workers += num
-      return usable_workers[ taken_workers - num : num ]
+      return usable_workers[ taken_workers - num : taken_workers ]
 
     for needy_assimilator in needy_assimilators:
       workers = get_workers(3 - needy_assimilator.assigned_harvesters)
@@ -106,7 +107,7 @@ class ProtossEconomyAdvisor(Advisor):
     if taken_workers < bad_workers.amount + excess_workers.amount and needy_mineral_tags:
       remaining_excess_workers = get_workers(bad_workers.amount + excess_workers.amount - taken_workers)
       for worker in remaining_excess_workers:
-        self.manager.do(worker.gather(self.manager.mineral_field.tags_in(acceptable_mineral_tags).random))
+        self.manager.do(worker.gather(self.manager.mineral_field.tags_in(needy_mineral_tags).random))
 
   async def tick(self):
     self.distribute_workers()
@@ -138,7 +139,7 @@ class ProtossEconomyAdvisor(Advisor):
     if nodes.exists:
       return Point2.center([ r.position for r in nodes ])
     else:
-      return self.manager.map_center
+      return self.manager.game_info.map_center
 
 
   def bases_centroid(self):
@@ -184,37 +185,49 @@ class ProtossEconomyAdvisor(Advisor):
 
     vgs = self.get_empty_geysers(assimilators)
     if vgs:
-      urgency = Urgency.HIGH
-      gates = self.manager.structures({ UnitTypeId.GATEWAY, UnitTypeId.WARPGATE })
-      if gates.amount < 2 and assimilators.amount >= gates.amount:
-        # keep the number of gateways ahead until there are 2 of each
-        urgency = Urgency.NONE
+      for vg in vgs:
+        urgency = Urgency.HIGH
+        gates = self.manager.structures({ UnitTypeId.GATEWAY, UnitTypeId.WARPGATE })
+        if gates.amount < 2 and assimilators.amount >= gates.amount:
+          # keep the number of gateways ahead until there are 2 of each
+          urgency = Urgency.NONE
 
-      if urgency:
-        requests.append(StructureRequest(UnitTypeId.ASSIMILATOR, vgs[0], urgency, exact=True))
+        if urgency and not (self.manager.already_pending(UnitTypeId.ASSIMILATOR) - self.manager.structures(UnitTypeId.ASSIMILATOR).not_ready.amount):
+          requests.append(StructureRequest(UnitTypeId.ASSIMILATOR, vgs[0], urgency, exact=True))
 
     return requests
 
   def maybe_expand(self, nodes, assimilators):
     requests = []
     next_base_location = self.next_base()
-    for unit in self.manager.units().closer_than(5, next_base_location):
+    destructables = self.manager.destructables.filter(lambda d: d.position.is_closer_than(1.0, next_base_location))
+    if destructables.exists:
+      for unit in self.manager.units({ UnitTypeId.ZEALOT, UnitTypeId.STALKER, UnitTypeId.ARCHON }).idle:
+        self.manager.do(unit.attack(destructables.first))
+    for unit in self.manager.units.closer_than(5, next_base_location):
       if unit.is_idle:
         self.manager.do(unit.move(next_base_location.towards(self.manager.game_info.map_center, 10)))
     nexus_urgency = Urgency.NONE
     mineable = self.sum_mineral_contents(nodes)
 
     if not self.manager.already_pending(UnitTypeId.NEXUS):
-      # Expand as we run out of minerals
-      if self.manager.workers.amount >= (len(nodes) * 2 + assimilators.filter(lambda a: a.vespene_contents > 0).amount*2): # deliberately below full saturation
-        nexus_urgency += 4
+      # if they're out-expanding us
+      if self.manager.enemy_structures(BASE_STRUCTURES).amount > self.manager.townhalls.amount:
+        nexus_urgency += 2
 
+      # if any of our workers don't have enough to do
+      if self.manager.workers.amount >= (len(nodes) * 2 + assimilators.filter(lambda a: a.vespene_contents > 0).amount*2): # deliberately below full saturation
+        nexus_urgency += 2
+
+      # if we're running out of minerals
       if mineable < 5000:
         nexus_urgency += 1
 
+      # if we're REALLY running out of minerals
       if mineable < 1000:
         nexus_urgency += 2
 
+      # if we're down to about one base
       if len(nodes) < 10:
         nexus_urgency += 2
 

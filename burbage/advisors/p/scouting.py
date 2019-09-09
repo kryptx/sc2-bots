@@ -100,18 +100,25 @@ class ProtossScoutingAdvisor(Advisor):
   def audit_missions(self):
     early_missions = [ ScoutingMissionType.FIND_BASES, ScoutingMissionType.DETECT_CHEESE ]
     rush_scout_complete = self.manager.advisor_data.scouting['enemy_is_rushing'] != None
-    if self.manager.time > 40 and self.manager.enemy_structures.empty and not rush_scout_complete and not any([m.mission in early_missions for m in self.missions]):
+
+    if self.manager.enemy_structures.empty and self.manager.time > 40 and not rush_scout_complete and not any([m.mission in early_missions for m in self.missions]):
       self.missions.append(ScoutingMission(ScoutingMissionType.FIND_BASES))
 
-    elif self.manager.time > 240 and len([ m for m in self.missions if m.mission == ScoutingMissionType.EXPANSION_HUNT ]) < 1:
+    if len([ m for m in self.missions if m.mission == ScoutingMissionType.EXPANSION_HUNT ]) < 1 and rush_scout_complete and self.manager.time > 240:
       self.missions.append(ScoutingMission(ScoutingMissionType.EXPANSION_HUNT))
 
-    if self.manager.time > 240 and len([ m for m in self.missions if m.mission == ScoutingMissionType.WATCH_ENEMY_ARMY ]) < 1:
+    if len([ m for m in self.missions if m.mission == ScoutingMissionType.WATCH_ENEMY_ARMY ]) < 1 and rush_scout_complete and self.manager.enemy_structures(BASE_STRUCTURES).exists:
       self.missions.append(ScoutingMission(ScoutingMissionType.WATCH_ENEMY_ARMY))
 
     if self.manager.units(UnitTypeId.OBSERVER).idle.exists and any(m.unit and m.unit.type_id != UnitTypeId.OBSERVER for m in self.missions):
       missions = list(self.missions)
       broken_mission = next(m for m in missions if m.unit.type_id != UnitTypeId.OBSERVER)
+      self.release_scout(broken_mission.unit)
+      broken_mission.unit = None
+
+    if self.manager.units(UnitTypeId.ZEALOT).idle.exists and any(m.unit and m.unit.type_id == UnitTypeId.PROBE for m in self.missions):
+      missions = list(self.missions)
+      broken_mission = next(m for m in missions if m.unit.type_id == UnitTypeId.PROBE)
       self.release_scout(broken_mission.unit)
       broken_mission.unit = None
 

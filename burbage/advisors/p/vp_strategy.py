@@ -150,7 +150,7 @@ class PvPStrategyAdvisor(Advisor):
 
     # Veryhigh is still only 2 (LOW) away from LIFEORDEATH
     # i.e. even if no cheese it only takes a ratio of 3 to be in a life or death urgency situation (will cut probes)
-    army_priority += min(Urgency.VERYHIGH, max(0, math.floor(self.fuckedness_ratio() * 3)))
+    army_priority += min(Urgency.VERYHIGH, max(0, math.floor(self.fuckedness_ratio() * 4)))
     urgency = Urgency.LOW + army_priority
 
     counts = {
