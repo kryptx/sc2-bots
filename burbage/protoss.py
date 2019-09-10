@@ -1,5 +1,6 @@
 import random
 import math
+from git import Repo
 
 import sc2
 from sc2 import Race, Difficulty
@@ -37,6 +38,7 @@ class UnitAllocation():
 class MacroManagerBot(sc2.BotAI):
 
   def __init__(self):
+    self.version_reported = False
     self.advisor_data = AdvisorData()
     self.tagged_units = UnitAllocation()
     self.rally_point = None
@@ -56,7 +58,16 @@ class MacroManagerBot(sc2.BotAI):
       self.scouting_advisor
     ]
 
+  async def report_version(self):
+    if not self.version_reported:
+      self.version_reported = True
+      repo = Repo(search_parent_directories=True)
+      if not repo.is_dirty():
+        sha = repo.head.object.hexsha
+        await self.chat_send("AdvisorBot verified hash: " + sha[0:10])
+
   async def on_step(self, iteration):
+    await self.report_version()
     requests = []
     self.desired_supply_buffer = 2 + self.structures({ UnitTypeId.WARPGATE, UnitTypeId.GATEWAY }).amount * 2.5
     for advisor in self.advisors:
