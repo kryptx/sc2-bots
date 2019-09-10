@@ -130,7 +130,7 @@ class ProtossEconomyAdvisor(Advisor):
         # Why even bother? but sure. okay
         self.attack_with_workers() # might as well. while we're here
         pylon_position = self.manager.start_location.towards_with_random_angle(self.manager.game_info.map_center, random.randint(4, 12))
-      requests.append(StructureRequest(UnitTypeId.PYLON, pylon_position, pylon_urgency))
+      requests.append(StructureRequest(UnitTypeId.PYLON, self.manager.planner, pylon_urgency))
 
     return requests
 
@@ -193,7 +193,7 @@ class ProtossEconomyAdvisor(Advisor):
           urgency = Urgency.NONE
 
         if urgency and not (self.manager.already_pending(UnitTypeId.ASSIMILATOR) - self.manager.structures(UnitTypeId.ASSIMILATOR).not_ready.amount):
-          requests.append(StructureRequest(UnitTypeId.ASSIMILATOR, vgs[0], urgency, exact=True))
+          requests.append(StructureRequest(UnitTypeId.ASSIMILATOR, self.manager.planner, urgency, force_target=vgs[0]))
 
     return requests
 

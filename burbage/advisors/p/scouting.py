@@ -90,10 +90,10 @@ class ProtossScoutingAdvisor(Advisor):
       urgency = Urgency.MEDIUM
       if self.manager.time > 300:
         urgency = Urgency.HIGH
-      requests.append(StructureRequest(UnitTypeId.ROBOTICSFACILITY, pylon.position, urgency))
+      requests.append(StructureRequest(UnitTypeId.ROBOTICSFACILITY, self.manager.planner, urgency))
 
     elif robos.ready.exists and bays.empty and not self.manager.already_pending(UnitTypeId.ROBOTICSBAY):
-      requests.append(StructureRequest(UnitTypeId.ROBOTICSBAY, pylon.position, Urgency.LOW))
+      requests.append(StructureRequest(UnitTypeId.ROBOTICSBAY, self.manager.planner, Urgency.LOW))
 
     return requests
 
@@ -116,7 +116,7 @@ class ProtossScoutingAdvisor(Advisor):
       self.release_scout(broken_mission.unit)
       broken_mission.unit = None
 
-    if self.manager.units(UnitTypeId.ZEALOT).idle.exists and any(m.unit and m.unit.type_id == UnitTypeId.PROBE for m in self.missions):
+    if self.manager.units(UnitTypeId.ZEALOT).idle.exists and any(m.unit and m.unit.type_id == UnitTypeId.PROBE and m.mission not in early_missions for m in self.missions):
       missions = list(self.missions)
       broken_mission = next(m for m in missions if m.unit.type_id == UnitTypeId.PROBE)
       self.release_scout(broken_mission.unit)

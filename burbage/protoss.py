@@ -13,7 +13,7 @@ from advisors.p.tactics import ProtossTacticsAdvisor
 from advisors.p.scouting import ProtossScoutingAdvisor
 from advisors.p.vp_strategy import PvPStrategyAdvisor
 
-from common import Urgency
+from common import Urgency, ProtossBasePlanner
 
 def urgencyValue(req):
   return req.urgency
@@ -43,6 +43,7 @@ class MacroManagerBot(sc2.BotAI):
 
     self.desired_supply_buffer = 3
 
+    self.planner = ProtossBasePlanner(self)
     self.economy_advisor = ProtossEconomyAdvisor(self)
     self.strategy_advisor = PvPStrategyAdvisor(self)
     self.tactics_advisor = ProtossTacticsAdvisor(self)

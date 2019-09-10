@@ -199,14 +199,14 @@ class PvPStrategyAdvisor(Advisor):
 
   def determine_rally_point(self):
     if self.manager.townhalls.empty or self.manager.townhalls.amount == 1:
-      return self.manager.main_base_ramp.top_center
+      return list(self.manager.main_base_ramp.upper)[0]
 
     base = self.manager.townhalls.closest_to(self.manager.game_info.map_center)
     def distance_to_base(ramp):
       return ramp.top_center.distance_to(base.position.towards(self.manager.game_info.map_center, 10))
 
     ramps = sorted(self.manager.game_info.map_ramps, key=distance_to_base)
-    return ramps[0].top_center
+    return list(ramps[0].upper)[0]
 
   async def audit_research(self):
     requests = []
@@ -287,29 +287,26 @@ class PvPStrategyAdvisor(Advisor):
     councils = self.manager.structures(UnitTypeId.TWILIGHTCOUNCIL)
     archives = self.manager.structures(UnitTypeId.TEMPLARARCHIVE)
 
-    # TODO: Smarter building placement
-    pylon = self.manager.structures(UnitTypeId.PYLON).ready.random
-
     # The rest of this is just tech tree stuff. gateway > core > forge + robo + TC > TA
     # Gateways before all. we're not cannon rushing.
     if not gateways.exists:
-      requests.append(StructureRequest(UnitTypeId.GATEWAY, pylon.position, Urgency.VERYHIGH))
+      requests.append(StructureRequest(UnitTypeId.GATEWAY, self.manager.planner, Urgency.VERYHIGH))
       return requests
 
     if (not self.manager.structures(UnitTypeId.CYBERNETICSCORE).exists
     and not self.manager.already_pending(UnitTypeId.CYBERNETICSCORE)
     and gateways.ready.exists):
-      requests.append(StructureRequest(UnitTypeId.CYBERNETICSCORE, pylon.position, Urgency.HIGH))
+      requests.append(StructureRequest(UnitTypeId.CYBERNETICSCORE, self.manager.planner, Urgency.HIGH))
 
     # forge when you get around to it.
     if (self.manager.units({ UnitTypeId.ZEALOT, UnitTypeId.STALKER, UnitTypeId.ARCHON }).amount >= 5
     and not self.manager.structures(UnitTypeId.FORGE).exists
     and not self.manager.already_pending(UnitTypeId.FORGE)):
-      requests.append(StructureRequest(UnitTypeId.FORGE, pylon.position, Urgency.MEDIUMLOW))
+      requests.append(StructureRequest(UnitTypeId.FORGE, self.manager.planner, Urgency.MEDIUMLOW))
 
     numGateways = gateways.amount
     if not self.manager.already_pending(UnitTypeId.GATEWAY) and (numGateways < self.manager.townhalls.amount * 2 or self.manager.minerals > 1500):
-      requests.append(StructureRequest(UnitTypeId.GATEWAY, pylon.position, Urgency.HIGH))
+      requests.append(StructureRequest(UnitTypeId.GATEWAY, self.manager.planner, Urgency.HIGH))
 
     cores = self.manager.structures(UnitTypeId.CYBERNETICSCORE).ready
     if not cores.exists:
@@ -317,13 +314,13 @@ class PvPStrategyAdvisor(Advisor):
 
     # BUILD A COUNCIL
     if not councils.exists and not self.manager.already_pending(UnitTypeId.TWILIGHTCOUNCIL):
-      requests.append(StructureRequest(UnitTypeId.TWILIGHTCOUNCIL, pylon.position, Urgency.MEDIUMHIGH))
+      requests.append(StructureRequest(UnitTypeId.TWILIGHTCOUNCIL, self.manager.planner, Urgency.MEDIUMHIGH))
 
     if not councils.ready.exists:
       return requests
 
     # BUILD AN ARCHIVE
     if not archives.exists and not self.manager.already_pending(UnitTypeId.TEMPLARARCHIVE):
-      requests.append(StructureRequest(UnitTypeId.TEMPLARARCHIVE, pylon.position, Urgency.MEDIUMHIGH))
+      requests.append(StructureRequest(UnitTypeId.TEMPLARARCHIVE, self.manager.planner, Urgency.MEDIUMHIGH))
 
     return requests
