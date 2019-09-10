@@ -97,7 +97,7 @@ class MacroManagerBot(sc2.BotAI):
       await advisor.on_unit_destroyed(unit)
 
 def main():
-  sc2.run_game(sc2.maps.get("NewkirkPrecinctTE"), [
+  sc2.run_game(sc2.maps.get("AcidPlantLE"), [
     Bot(Race.Protoss, MacroManagerBot()),
     Computer(Race.Protoss, Difficulty.VeryHard)
   ], realtime=False)

@@ -243,6 +243,8 @@ class ProtossEconomyAdvisor(Advisor):
         pylon_urgency = Urgency.EXTREME
       if self.manager.supply_left < self.manager.desired_supply_buffer:
         pylon_urgency = Urgency.VERYHIGH
+      elif any(self.manager.structures(UnitTypeId.PYLON).closer_than(15, nex).empty for nex in self.manager.townhalls):
+        pylon_urgency = Urgency.MEDIUMHIGH
       elif self.manager.supply_left < self.manager.desired_supply_buffer * 1.5:
         pylon_urgency = Urgency.LOW
 
