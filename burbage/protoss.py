@@ -35,7 +35,7 @@ class UnitAllocation():
     self.economy = set()
     self.scouting = set()
 
-class MacroManagerBot(sc2.BotAI):
+class AdvisorBot(sc2.BotAI):
 
   def __init__(self):
     self.version_reported = False
@@ -98,7 +98,7 @@ class MacroManagerBot(sc2.BotAI):
 
 def main():
   sc2.run_game(sc2.maps.get("TritonLE"), [
-    Bot(Race.Protoss, MacroManagerBot()),
+    Bot(Race.Protoss, AdvisorBot()),
     Computer(Race.Protoss, Difficulty.VeryHard)
   ], realtime=False)
 
