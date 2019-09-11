@@ -18,28 +18,38 @@ class Urgency(enum.IntFlag):
 
 # PYLON POSITIONS ARE BOTTOM LEFT CORNER
 pylon_positions = [
-  # straight to the northeast
-  [ Point2([ 7, 7 ]),
-    Point2([ 7, 9 ]),
-    Point2([ 9, 7 ]) ],
-  [ Point2([ 2, 5 ]),
-    Point2([ 2, 7 ]),
-    Point2([ 2, 9 ]) ],
-  [ Point2([ 2, 11 ]) ],
-  [ Point2([ 5, 2 ]),
-    Point2([ 7, 2 ]),
-    Point2([ 9, 2 ]) ],
-  [ Point2([ 11, 2 ]) ]
+  # RED
+  [ Point2([ 4, 4 ]),
+    Point2([ 7, 1 ]), ],
+  # YELLOW
+  [ Point2([ 4, 4 ]),
+    Point2([ 1, 7 ]), ],
+  # GREEN
+  [ Point2([ 9, 1 ]),
+    Point2([ 11, 1 ]) ],
+  # AQUA
+  [ Point2([ 1, 9 ]),
+    Point2([ 1, 11 ]) ],
+  # BLUE
+  [ Point2([ 8, 11 ]),
+    Point2([ 11, 8 ])
+  ]
 ]
 
 # STRUCTURE POSITIONS ARE CENTERED
 structure_positions = [
-  [ Point2([ 5, 5 ]),
-    Point2([ 10, 10 ]) ],
-  [ Point2([ 5, 8 ]), ],
-  [ Point2([ 5, 11 ]), ],
-  [ Point2([ 8, 5 ]), ],
-  [ Point2([ 11, 5 ]), ]
+  # RED
+  [ Point2([ 5, 2 ]),
+    Point2([ 8, 4 ]) ],
+  # YELLOW
+  [ Point2([ 2, 5 ]),
+    Point2([ 4, 8 ]) ],
+  # GREEN
+  [ Point2([ 11, 4 ]) ],
+  # AQUA
+  [ Point2([ 4, 11 ]) ],
+  # BLUE
+  [ Point2([ 9, 9 ]) ],
 ]
 
 class TrainingRequest():

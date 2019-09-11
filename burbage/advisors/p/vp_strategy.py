@@ -116,7 +116,7 @@ class PvPStrategyAdvisor(Advisor):
       self.manager.do(templar(AbilityId.MORPH_ARCHON))
 
   def handle_threats(self):
-    threats = list_flatten([self.manager.enemy_units.closer_than(40, nex) for nex in self.manager.townhalls])
+    threats = list_flatten([self.manager.enemy_units.closer_than(30, nex) for nex in self.manager.townhalls])
     for threat in threats:
       self.assign_defenders(threat)
 

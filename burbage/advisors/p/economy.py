@@ -150,8 +150,9 @@ class ProtossEconomyAdvisor(Advisor):
     def distance_to_home(location):
       return centroid.distance_to(location)
 
-    all_possible_expansions = [loc for loc in list(self.manager.expansion_locations.keys()) if loc not in self.manager.owned_expansions.keys()]
-    return min(all_possible_expansions, key=distance_to_home)
+    all_possible_expansions = [loc for loc in list(self.manager.expansion_locations.keys()) if loc not in self.manager.owned_expansions.keys() and not self.manager.enemy_structures.closer_than(5, loc).exists]
+    return min(all_possible_expansions, key=distance_to_home) if all_possible_expansions else None
+
 
   def sum_mineral_contents(self, nodes):
     return sum([field.mineral_contents for field in nodes])
@@ -200,6 +201,8 @@ class ProtossEconomyAdvisor(Advisor):
   def maybe_expand(self, nodes, assimilators):
     requests = []
     next_base_location = self.next_base()
+    if not next_base_location:
+      return requests
     destructables = self.manager.destructables.filter(lambda d: d.position.is_closer_than(1.0, next_base_location))
     if destructables.exists:
       for unit in self.manager.units({ UnitTypeId.ZEALOT, UnitTypeId.STALKER, UnitTypeId.ARCHON }).idle:

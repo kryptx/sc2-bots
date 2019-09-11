@@ -36,7 +36,11 @@ class ProtossTacticsAdvisor(Advisor):
       self.manager.do(attacker.attack(attack_location))
     for mission in self.manager.strategy_advisor.defense.values():
       for defender in mission.defenders:
-        self.manager.do(defender.attack(mission.target.position))
+        unit = self.manager.enemy_units.tags_in([ mission.target.tag ])
+        if unit.exists:
+          self.manager.do(defender.attack(unit.first.position))
+        else:
+          self.manager.do(defender.attack(mission.target.position))
 
   def arrange(self):
     if not self.manager.rally_point:
@@ -48,7 +52,8 @@ class ProtossTacticsAdvisor(Advisor):
       UnitTypeId.ARCHON
     }).tags_not_in(
       list(self.manager.tagged_units.strategy) +
-      list(self.manager.tagged_units.scouting)
+      list(self.manager.tagged_units.scouting) +
+      [d.tag for d in self.manager.strategy_advisor.defenders]
     )
 
     if available.idle.exists:
