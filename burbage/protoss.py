@@ -14,7 +14,9 @@ from advisors.p.tactics import ProtossTacticsAdvisor
 from advisors.p.scouting import ProtossScoutingAdvisor
 from advisors.p.vp_strategy import PvPStrategyAdvisor
 
-from common import Urgency, ProtossBasePlanner
+from planners.protoss import ProtossBasePlanner
+
+from common import Urgency
 
 def urgencyValue(req):
   return req.urgency
