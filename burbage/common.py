@@ -16,6 +16,11 @@ class Urgency(enum.IntFlag):
   EXTREME = 8,    # absolutely do this right now
   LIFEORDEATH = 9 # if you can't do this, you might as well surrender
 
+class ObjectiveStatus(enum.IntFlag):
+  ALLOCATING = 1,   # Need more units
+  STAGING = 2,      # Getting into position and well-arranged
+  ACTIVE = 3,       # Attacking
+  RETREATING = 4    # boo
 
 class TrainingRequest():
   def __init__(self, unit_type, structure, urgency):
@@ -102,3 +107,18 @@ def list_diff(first, second):
 
 def list_flatten(list_of_lists):
   return [item for sublist in list_of_lists for item in sublist]
+
+class StrategicObjective():
+  def __init__(self, target, rendezvous, urgency):
+    self.status = ObjectiveStatus.ALLOCATING
+    self.allocated_tags = []
+    self.rendezvous = rendezvous or target.position
+    self.urgency = urgency
+
+class AttackObjective(StrategicObjective):
+  def __init__(self, target, rendezvous=None, urgency=Urgency.MEDIUM):
+    super().__init__(target, rendezvous, urgency)
+
+class DefenseObjective(StrategicObjective):
+  def __init__(self, target, rendezvous=None, urgency=Urgency.HIGH):
+    super().__init__(target, rendezvous, urgency)

@@ -15,10 +15,11 @@ class ProtossEconomyAdvisor(Advisor):
   def __init__(self, manager):
     super().__init__(manager)
     self.last_distribute = 0
+    self.next_base_location = None
 
   def distribute_workers(self):
-    # Only do anything once every 5 seconds
-    if self.manager.time - self.last_distribute < 5:
+    # Only do anything once every 3 seconds
+    if self.manager.time - self.last_distribute < 3:
       return
 
     self.last_distribute = self.manager.time
@@ -122,14 +123,6 @@ class ProtossEconomyAdvisor(Advisor):
     pylon_urgency = self.determine_pylon_urgency()
 
     if pylon_urgency:
-      nexus = self.find_base()
-      pylon_position = None
-      if nexus:
-        pylon_position = nexus.position.towards_with_random_angle(self.resource_centroid(nexus), random.randint(-14,-3))
-      else:
-        # Why even bother? but sure. okay
-        self.attack_with_workers() # might as well. while we're here
-        pylon_position = self.manager.start_location.towards_with_random_angle(self.manager.game_info.map_center, random.randint(4, 12))
       requests.append(StructureRequest(UnitTypeId.PYLON, self.manager.planner, pylon_urgency))
 
     return requests
@@ -145,14 +138,18 @@ class ProtossEconomyAdvisor(Advisor):
   def bases_centroid(self):
     return Point2.center([nex.position for nex in self.manager.townhalls])
 
-  def next_base(self):
+  def find_next_base(self):
     centroid = self.bases_centroid() if self.manager.townhalls.amount > 1 else self.manager.main_base_ramp.bottom_center
     def distance_to_home(location):
       return centroid.distance_to(location)
 
-    all_possible_expansions = [loc for loc in list(self.manager.expansion_locations.keys()) if loc not in self.manager.owned_expansions.keys() and not self.manager.enemy_structures.closer_than(5, loc).exists]
+    all_possible_expansions = [
+      loc
+      for loc in list(self.manager.expansion_locations.keys())
+      if loc not in self.manager.owned_expansions.keys()
+        and not self.manager.enemy_structures.closer_than(5, loc).exists
+    ]
     return min(all_possible_expansions, key=distance_to_home) if all_possible_expansions else None
-
 
   def sum_mineral_contents(self, nodes):
     return sum([field.mineral_contents for field in nodes])
@@ -200,16 +197,17 @@ class ProtossEconomyAdvisor(Advisor):
 
   def maybe_expand(self, nodes, assimilators):
     requests = []
-    next_base_location = self.next_base()
-    if not next_base_location:
+    if not self.next_base_location or any(nex.position == self.next_base_location for nex in self.manager.townhalls):
+      self.next_base_location = self.find_next_base()
+    if not self.next_base_location:
       return requests
-    destructables = self.manager.destructables.filter(lambda d: d.position.is_closer_than(1.0, next_base_location))
+    destructables = self.manager.destructables.filter(lambda d: d.position.is_closer_than(1.0, self.next_base_location))
     if destructables.exists:
       for unit in self.manager.units({ UnitTypeId.ZEALOT, UnitTypeId.STALKER, UnitTypeId.ARCHON }).idle:
         self.manager.do(unit.attack(destructables.first))
-    for unit in self.manager.units.closer_than(5, next_base_location):
+    for unit in self.manager.units.closer_than(5, self.next_base_location):
       if unit.is_idle:
-        self.manager.do(unit.move(next_base_location.towards(self.manager.game_info.map_center, 10)))
+        self.manager.do(unit.move(self.next_base_location.towards(self.manager.game_info.map_center, 10)))
     nexus_urgency = Urgency.NONE
     mineable = self.sum_mineral_contents(nodes)
 
@@ -234,7 +232,7 @@ class ProtossEconomyAdvisor(Advisor):
       if len(nodes) < 10:
         nexus_urgency += 2
 
-      requests.append(ExpansionRequest(next_base_location, nexus_urgency))
+      requests.append(ExpansionRequest(self.next_base_location, nexus_urgency))
 
     return requests
 
@@ -246,8 +244,6 @@ class ProtossEconomyAdvisor(Advisor):
         pylon_urgency = Urgency.EXTREME
       if self.manager.supply_left < self.manager.desired_supply_buffer:
         pylon_urgency = Urgency.VERYHIGH
-      elif any(self.manager.structures(UnitTypeId.PYLON).closer_than(15, nex).empty for nex in self.manager.townhalls):
-        pylon_urgency = Urgency.MEDIUMHIGH
       elif self.manager.supply_left < self.manager.desired_supply_buffer * 1.5:
         pylon_urgency = Urgency.LOW
 

@@ -60,3 +60,9 @@ class ProtossTacticsAdvisor(Advisor):
       for unit in available.idle.further_than(6, self.manager.rally_point):
         self.manager.do(unit.attack(self.manager.rally_point))
 
+    for effect in self.manager.state.effects:
+      if effect.id == EffectId.PSISTORMPERSISTENT:
+        for position in effect.positions:
+          for unit in self.manager.units.closer_than(3, position):
+            self.manager.do(unit.move(unit.position.towards(position, -2)))
+

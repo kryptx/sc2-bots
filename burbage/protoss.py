@@ -99,7 +99,7 @@ class AdvisorBot(sc2.BotAI):
       await advisor.on_unit_destroyed(unit)
 
 def main():
-  sc2.run_game(sc2.maps.get("TritonLE"), [
+  sc2.run_game(sc2.maps.get("WorldofSleepersLE"), [
     Bot(Race.Protoss, AdvisorBot()),
     Computer(Race.Protoss, Difficulty.VeryHard)
   ], realtime=False)

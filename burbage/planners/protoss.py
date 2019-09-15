@@ -64,7 +64,7 @@ def flip_both(point, size=2):
   return Point2([ -point.x + size - 3, -point.y + size - 3 ])
 
 mutators = [ identity, flip_x, flip_y, flip_both ]
-god_pylons = [ Point2([ 4, 4 ]), Point2([ -5, 4 ]), Point2([ 4, -5 ]), Point2([ -5, -5 ]) ]
+god_pylons = [ mutate(Point2([ 4, 4 ])) for mutate in mutators ]
 
 class ProtossBasePlan():
   def __init__(self):
@@ -116,7 +116,7 @@ class ProtossBasePlanner(BasePlanner):
     acceptable_positions = [ p for p in list_flatten([ p.pylon_positions for p in self.plans.values() ]) if p not in existing_pylons ]
 
     random.shuffle(acceptable_positions)
-    # Move god pylons to the front - minimizes placement issues
+    # Move god pylons to the front - minimizes POOR PLANNING issues
     for i in range(len(acceptable_positions)):
       if any(acceptable_positions[i] - base_location in god_pylons for base_location in base_locations):
         acceptable_positions.insert(0, acceptable_positions.pop(i))
