@@ -4,6 +4,16 @@ import sc2
 from sc2.constants import *
 from sc2.position import Point2
 
+BaseStructures = {
+  UnitTypeId.NEXUS,
+  UnitTypeId.COMMANDCENTER,
+  UnitTypeId.ORBITALCOMMAND,
+  UnitTypeId.PLANETARYFORTRESS,
+  UnitTypeId.HATCHERY,
+  UnitTypeId.LAIR,
+  UnitTypeId.HIVE
+}
+
 class Urgency(enum.IntFlag):
   NONE = 0,       # don't do this
   VERYLOW = 1,    # Totally fine if it never happens

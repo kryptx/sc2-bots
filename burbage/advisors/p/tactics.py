@@ -5,7 +5,7 @@ from sc2.constants import *
 from sc2.units import Units
 
 from burbage.advisors.advisor import Advisor
-from burbage.common import list_diff, list_flatten
+from burbage.common import BaseStructures, list_diff, list_flatten
 
 class ProtossTacticsAdvisor(Advisor):
   def __init__(self, manager):
@@ -26,13 +26,10 @@ class ProtossTacticsAdvisor(Advisor):
     for attacker in self.manager.units().tags_in(self.manager.tagged_units.strategy).idle:
       attack_location = self.manager.enemy_start_locations[0]
       if self.manager.enemy_structures.exists:
-        attack_location = self.manager.enemy_structures({
-          UnitTypeId.NEXUS,
-          UnitTypeId.COMMANDCENTER,
-          UnitTypeId.HATCHERY,
-          UnitTypeId.LAIR,
-          UnitTypeId.HIVE
-        }).random.position
+        if self.manager.enemy_structures(BaseStructures).exists:
+          attack_location = self.manager.enemy_structures(BaseStructures).random.position
+        else:
+          attack_location = self.manager.enemy_structures.random.position
       self.manager.do(attacker.attack(attack_location))
     for mission in self.manager.strategy_advisor.defense.values():
       for defender in mission.defenders:

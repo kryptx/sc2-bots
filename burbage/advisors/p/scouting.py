@@ -6,7 +6,7 @@ from sc2.units import Units
 from sc2.position import Point2
 
 from burbage.advisors.advisor import Advisor
-from burbage.common import Urgency, TrainingRequest, StructureRequest, list_diff, list_flatten
+from burbage.common import Urgency, TrainingRequest, StructureRequest, BaseStructures, list_diff, list_flatten
 
 class ScoutingMissionType(enum.IntFlag):
   FIND_BASES = 1,
@@ -25,7 +25,6 @@ class Race(enum.IntFlag):
   PROTOSS = 3,
   RANDOM = 4
 
-BASE_STRUCTURES = { UnitTypeId.NEXUS, UnitTypeId.COMMANDCENTER, UnitTypeId.HATCHERY, UnitTypeId.LAIR, UnitTypeId.HIVE }
 TECH_STRUCTURES = { UnitTypeId.LAIR, UnitTypeId.ROACHWARREN, UnitTypeId.CYBERNETICSCORE, UnitTypeId.FACTORY, UnitTypeId.STARPORT }
 
 class ScoutingMission():
@@ -107,7 +106,7 @@ class ProtossScoutingAdvisor(Advisor):
     if len([ m for m in self.missions if m.mission == ScoutingMissionType.EXPANSION_HUNT ]) < 1 and rush_scout_complete and self.manager.time > 240:
       self.missions.append(ScoutingMission(ScoutingMissionType.EXPANSION_HUNT))
 
-    if len([ m for m in self.missions if m.mission == ScoutingMissionType.WATCH_ENEMY_ARMY ]) < 1 and rush_scout_complete and self.manager.enemy_structures(BASE_STRUCTURES).exists:
+    if len([ m for m in self.missions if m.mission == ScoutingMissionType.WATCH_ENEMY_ARMY ]) < 1 and rush_scout_complete and self.manager.enemy_structures(BaseStructures).exists:
       self.missions.append(ScoutingMission(ScoutingMissionType.WATCH_ENEMY_ARMY))
 
     if self.manager.units(UnitTypeId.OBSERVER).idle.exists and any(m.unit and m.unit.type_id != UnitTypeId.OBSERVER for m in self.missions):
@@ -171,7 +170,7 @@ class ProtossScoutingAdvisor(Advisor):
 
   def evaluate_rush_status(self):
     now = self.manager.time
-    enemy_bases = self.manager.enemy_structures(BASE_STRUCTURES)
+    enemy_bases = self.manager.enemy_structures(BaseStructures)
     if self.manager.advisor_data.scouting['enemy_is_rushing'] == None:
       known_not_rushing = False
       known_rushing = False
@@ -220,7 +219,7 @@ class ProtossScoutingAdvisor(Advisor):
 
   def evaluate_mission_status(self):
     now = self.manager.time
-    enemy_bases = self.manager.enemy_structures(BASE_STRUCTURES)
+    enemy_bases = self.manager.enemy_structures(BaseStructures)
     for mission in self.missions:
       if mission.complete:
         if mission.unit:
@@ -290,13 +289,13 @@ class ProtossScoutingAdvisor(Advisor):
     if mission.mission == ScoutingMissionType.EXPLORE:
       mission.targets = list(self.manager.expansion_locations.keys())
     if mission.mission == ScoutingMissionType.EXPANSION_HUNT:
-      enemy_bases = [b.position for b in self.manager.enemy_structures(BASE_STRUCTURES)]
+      enemy_bases = [b.position for b in self.manager.enemy_structures(BaseStructures)]
       our_bases = list(self.manager.owned_expansions.keys())
       mission.targets = [ p for p in self.manager.expansion_locations.keys() if p not in enemy_bases + our_bases ]
     if mission.mission == ScoutingMissionType.DETECT_CHEESE:
       # if the situation is anything other than a single base in the main,
       # this *might* be hit once but that scout is going home soon
-      base = self.manager.enemy_structures(BASE_STRUCTURES).first
+      base = self.manager.enemy_structures(BaseStructures).first
       def distance_to_enemy(ramp):
         return ramp.top_center.distance_to(base)
 
@@ -320,7 +319,7 @@ class ProtossScoutingAdvisor(Advisor):
       if known_enemy_units.exists:
         mission.targets = [ known_enemy_units.center ]
       else:
-        mission.targets = [ b.position for b in self.manager.enemy_structures(BASE_STRUCTURES) ]
+        mission.targets = [ b.position for b in self.manager.enemy_structures(BaseStructures) ]
 
   def next_target(self, mission):
     if mission.targets:

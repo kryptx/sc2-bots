@@ -6,9 +6,8 @@ from sc2.position import Point2
 from sc2.units import Units
 
 from burbage.advisors.advisor import Advisor
-from burbage.common import Urgency, TrainingRequest, StructureRequest, ExpansionRequest, list_diff, list_flatten
+from burbage.common import Urgency, TrainingRequest, StructureRequest, ExpansionRequest, BaseStructures, list_diff, list_flatten
 
-BASE_STRUCTURES = { UnitTypeId.NEXUS, UnitTypeId.COMMANDCENTER, UnitTypeId.HATCHERY, UnitTypeId.LAIR, UnitTypeId.HIVE }
 WORKER_LIMIT = 66
 
 class ProtossEconomyAdvisor(Advisor):
@@ -213,7 +212,7 @@ class ProtossEconomyAdvisor(Advisor):
 
     if not self.manager.already_pending(UnitTypeId.NEXUS):
       # if they're out-expanding us
-      if self.manager.enemy_structures(BASE_STRUCTURES).amount > self.manager.townhalls.amount:
+      if self.manager.enemy_structures(BaseStructures).amount > self.manager.townhalls.amount:
         nexus_urgency += 2
 
       # if any of our workers don't have enough to do
