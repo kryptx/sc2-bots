@@ -6,44 +6,39 @@ from sc2.constants import *
 from sc2.units import Units
 
 from burbage.advisors.advisor import Advisor
-from burbage.common import Urgency, TrainingRequest, WarpInRequest, StructureRequest, ResearchRequest, list_flatten
+from burbage.common import Urgency, TrainingRequest, WarpInRequest, StructureRequest, ResearchRequest, DefenseObjective, AttackObjective, BaseStructures, list_flatten
 
 BASE_DEFENSE_RADIUS = 35
 
-class DefenseMission():
-  def __init__(self, target):
-    self.last_visible = 0
-    self.target = target
-    self.defenders = []
-    self.desired_unit_quantity = 2
-    self.enemy_killed = False
+# class DefenseMission():
+#   def __init__(self, target):
+#     self.last_visible = 0
+#     self.target = target
+#     self.defenders = []
+#     self.desired_unit_quantity = 2
+#     self.enemy_killed = False
 
-  def is_complete(self, now, bases):
-    return self.enemy_killed or now - self.last_visible > 10 or all(base.position.is_further_than(BASE_DEFENSE_RADIUS, self.target.position) for base in bases)
+#   def is_complete(self, now, bases):
+#     return self.enemy_killed or now - self.last_visible > 10 or all(base.position.is_further_than(BASE_DEFENSE_RADIUS, self.target.position) for base in bases)
 
 class PvPStrategyAdvisor(Advisor):
   def __init__(self, manager):
     super().__init__(manager)
     self.warpgate_complete = False
-    self.defense = dict() # enemy_tag: DefenseMission
+    self.objectives = []
     self.last_defense_check = dict() # enemy tag: time
 
   @property
   def defenders(self):
-    return list_flatten([ mission.defenders for mission in self.defense.values() ])
+    return list_flatten([ objective.allocated for objective in self.objectives if isinstance(objective, DefenseObjective) ])
 
   async def on_upgrade_complete(self, upgrade):
     if upgrade == UpgradeId.WARPGATERESEARCH:
       self.warpgate_complete = True
 
   async def on_unit_destroyed(self, unit):
-    if unit in self.defense:
-      self.defense[unit].enemy_killed = True
-    else:
-      for mission in self.defense.values():
-        if unit in mission.defenders:
-          mission.defenders.remove(unit)
-          break
+    for objective in self.objectives:
+      objective.allocated.discard(unit)
 
   async def tick(self):
     self.manager.rally_point = self.determine_rally_point()
@@ -51,9 +46,17 @@ class PvPStrategyAdvisor(Advisor):
     requests += await self.audit_research()
     requests += await self.build_gateway_units()
     self.use_excess_chrono_boosts()
+    self.objectives = [ objective for objective in self.objectives if not objective.is_complete() ]
     self.handle_threats()
     self.allocate_units()
+    self.advance_objectives()
+    # nothing is actually using this
+    # self.manager.tagged_units.strategy = set(list_flatten([[ tag for tag in objective.allocated ] for objective in self.objectives ]))
     return requests
+
+  def advance_objectives(self):
+    for objective in self.objectives:
+      objective.tick()
 
   def use_excess_chrono_boosts(self):
     full_nexuses = self.manager.townhalls.filter(lambda nex: nex.energy > 190)
@@ -67,63 +70,19 @@ class PvPStrategyAdvisor(Advisor):
       if gate.exists:
         self.manager.do(nexus(AbilityId.EFFECT_CHRONOBOOSTENERGYCOST, gate.random))
 
-  def assign_defenders(self, unit):
-    if unit.tag in self.last_defense_check and self.manager.time - self.last_defense_check[unit.tag] < 2:
-      return
-    self.last_defense_check[unit.tag] = self.manager.time
-    mission = self.defense[unit.tag] if unit.tag in self.defense else DefenseMission(unit)
-    self.defense[unit.tag] = mission
-
-    mission.last_visible = self.manager.time
-    current_defenders = self.manager.units.tags_in([ d.tag for d in mission.defenders ])
-
-    if current_defenders.amount >= mission.desired_unit_quantity:
-      return
-
-    ## DID YOU GET AN ERROR ABOUT AN EMPTY UNITS OBJECT?
-    # The python -O option will ignore the assert. it's perfectly safe.
-    existing_defenders = [ d.tag for d in self.defenders ]
-    stalkers = self.manager.units({ UnitTypeId.STALKER }).tags_not_in(existing_defenders).closest_n_units(unit.position, 2)
-    archons = self.manager.units({ UnitTypeId.ARCHON }).tags_not_in(existing_defenders).closest_n_units(unit.position, 2)
-    zealots = self.manager.units({ UnitTypeId.ZEALOT }).tags_not_in(existing_defenders).closest_n_units(unit.position, 2)
-    defenders = stalkers + archons + zealots  # ordered
-
-    #print("mission " + str(unit.tag) + " defenders size is now " + str(len(mission.defenders)))
-    #print("mission " + str(unit.tag) + " has desired quantity of " + str(mission.desired_unit_quantity))
-    needed_quantity = mission.desired_unit_quantity - current_defenders.amount
-    #print("mission " + str(unit.tag) + " needs " + str(needed_quantity) + " more defenders")
-    mission.defenders.extend(defenders[:needed_quantity])
-    #print("mission " + str(unit.tag) + " defenders size is now " + str(len(mission.defenders)))
-
   def allocate_units(self):
-    # Populate values for tactical advisor to read
-    my_army = self.manager.units({
-      UnitTypeId.ZEALOT,
-      UnitTypeId.STALKER,
-      UnitTypeId.ARCHON
-    }).tags_not_in(self.manager.tagged_units.scouting)
-
-    if my_army.idle.amount >= 35:
-      self.manager.tagged_units.strategy = set(
-        u.tag
-        for u in self.manager.units({ UnitTypeId.ZEALOT, UnitTypeId.STALKER, UnitTypeId.ARCHON })
-      )
-    else:
-      self.manager.tagged_units.strategy = set()
+    if (self.manager.supply_used > 196 or self.fuckedness_ratio() < 0.5) and not any(isinstance(objective, AttackObjective) for objective in self.objectives):
+      self.objectives.append(AttackObjective(self.manager, self.manager.enemy_structures(BaseStructures).furthest_to(self.manager.enemy_start_locations[0])))
 
     # Morph any archons
     for templar in self.manager.units(UnitTypeId.HIGHTEMPLAR):
       self.manager.do(templar(AbilityId.MORPH_ARCHON))
 
   def handle_threats(self):
-    threats = list_flatten([self.manager.enemy_units.closer_than(30, nex) for nex in self.manager.townhalls])
-    for threat in threats:
-      self.assign_defenders(threat)
-
-    now = self.manager.time
-    for enemy in list(self.defense.keys()):
-      if self.defense[enemy].is_complete(now, self.manager.townhalls):
-        del self.defense[enemy]
+    targeted_tags = [ objective.target.tag for objective in self.objectives ]
+    threatened_bases = self.manager.townhalls.filter(lambda nex: self.manager.enemy_units.closer_than(30, nex).exists and nex.tag not in targeted_tags)
+    for base in threatened_bases:
+      self.objectives.append(DefenseObjective(self.manager, base))
 
   def army_dps(self):
     return sum([ max(u.ground_dps, u.air_dps) for u in self.manager.units if u.ground_dps > 5 or u.air_dps > 0 ])
@@ -201,11 +160,10 @@ class PvPStrategyAdvisor(Advisor):
     if self.manager.townhalls.empty or self.manager.townhalls.amount == 1:
       return list(self.manager.main_base_ramp.upper)[0]
 
-    base = self.manager.townhalls.closest_to(self.manager.game_info.map_center)
-    def distance_to_base(ramp):
-      return ramp.top_center.distance_to(base.position.towards(self.manager.game_info.map_center, 10))
+    def distance_to_bases(ramp):
+      return ramp.top_center.distance_to(self.manager.bases_centroid().towards(self.manager.game_info.map_center, 20))
 
-    ramps = sorted(self.manager.game_info.map_ramps, key=distance_to_base)
+    ramps = sorted(self.manager.game_info.map_ramps, key=distance_to_bases)
     return list(ramps[0].upper)[0]
 
   async def audit_research(self):

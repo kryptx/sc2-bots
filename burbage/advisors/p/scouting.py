@@ -82,7 +82,6 @@ class ProtossScoutingAdvisor(Advisor):
     if any(not req.exists for req in prereqs):
       return requests
 
-    pylon = self.manager.structures(UnitTypeId.PYLON).ready.random
     robos = self.manager.structures(UnitTypeId.ROBOTICSFACILITY)
     bays = self.manager.structures(UnitTypeId.ROBOTICSBAY)
     if robos.empty and not self.manager.already_pending(UnitTypeId.ROBOTICSFACILITY):
@@ -139,16 +138,14 @@ class ProtossScoutingAdvisor(Advisor):
       self.manager.advisor_data.scouting['enemy_army'][unit.tag] = unit
 
   def assign_scout(self, mission):
-    claimed_units = list(self.manager.tagged_units.strategy) + list(self.manager.tagged_units.scouting)
-
     if mission.unit_type:
-      available_units = self.manager.units(mission.unit_type).tags_not_in(claimed_units)
+      available_units = self.manager.unallocated(mission.unit_type)
       if available_units.exists:
         mission.unit = available_units.closest_to(mission.targets[0])
     else:
-      observers = self.manager.units(UnitTypeId.OBSERVER).tags_not_in(claimed_units)
-      zealots = self.manager.units(UnitTypeId.ZEALOT).tags_not_in(claimed_units)
-      probes = self.manager.units(UnitTypeId.PROBE).tags_not_in(claimed_units)
+      observers = self.manager.unallocated(UnitTypeId.OBSERVER)
+      zealots = self.manager.unallocated(UnitTypeId.ZEALOT)
+      probes = self.manager.unallocated(UnitTypeId.PROBE)
 
       if observers.exists:
         mission.unit = observers.closest_to(mission.targets[0])

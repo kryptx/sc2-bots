@@ -133,12 +133,8 @@ class ProtossEconomyAdvisor(Advisor):
     else:
       return self.manager.game_info.map_center
 
-
-  def bases_centroid(self):
-    return Point2.center([nex.position for nex in self.manager.townhalls])
-
   def find_next_base(self):
-    centroid = self.bases_centroid() if self.manager.townhalls.amount > 1 else self.manager.main_base_ramp.bottom_center
+    centroid = self.manager.bases_centroid() if self.manager.townhalls.amount > 1 else self.manager.main_base_ramp.bottom_center
     def distance_to_home(location):
       return centroid.distance_to(location)
 

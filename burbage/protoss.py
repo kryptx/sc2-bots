@@ -8,6 +8,7 @@ from sc2.constants import *
 from sc2.player import Bot, Computer
 from sc2.unit_command import UnitCommand
 from sc2.units import Units
+from sc2.position import Point2
 
 from advisors.p.economy import ProtossEconomyAdvisor
 from advisors.p.tactics import ProtossTacticsAdvisor
@@ -16,7 +17,7 @@ from advisors.p.vp_strategy import PvPStrategyAdvisor
 
 from planners.protoss import ProtossBasePlanner
 
-from common import Urgency
+from common import Urgency, list_flatten
 
 def urgencyValue(req):
   return req.urgency
@@ -97,6 +98,17 @@ class AdvisorBot(sc2.BotAI):
   async def on_unit_destroyed(self, unit):
     for advisor in self.advisors:
       await advisor.on_unit_destroyed(unit)
+
+  def bases_centroid(self):
+    return Point2.center([nex.position for nex in self.townhalls])
+
+  def unallocated(self, unit_types=None, urgency=Urgency.NONE):
+    units = self.units(unit_types) if unit_types else self.units
+    return units.tags_not_in(list_flatten([
+      list(objective.allocated)
+      for objective in self.strategy_advisor.objectives
+      if objective.urgency and objective.urgency >= urgency
+    ]) + list(self.tagged_units.scouting))
 
 def main():
   sc2.run_game(sc2.maps.get("EphemeronLE"), [
