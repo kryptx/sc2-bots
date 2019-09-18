@@ -6,7 +6,7 @@ from sc2.units import Units
 from sc2.position import Point2
 
 from burbage.advisors.advisor import Advisor
-from burbage.common import Urgency, TrainingRequest, StructureRequest, BaseStructures, list_diff, list_flatten
+from burbage.common import Urgency, WarpInRequest, TrainingRequest, StructureRequest, BaseStructures, list_diff, list_flatten
 
 class ScoutingMissionType(enum.IntFlag):
   FIND_BASES = 1,
@@ -73,6 +73,7 @@ class ProtossScoutingAdvisor(Advisor):
     self.audit_missions()
     requests = self.audit_structures()         # we'll demand robotics if other advisors don't
     requests += self.build_robotics_units()    # observers only
+    requests += await self.build_gateway_units()    # observers only
     return requests
 
   def audit_structures(self):
@@ -144,13 +145,13 @@ class ProtossScoutingAdvisor(Advisor):
         mission.unit = available_units.closest_to(mission.targets[0])
     else:
       observers = self.manager.unallocated(UnitTypeId.OBSERVER)
-      zealots = self.manager.unallocated(UnitTypeId.ZEALOT)
+      adepts = self.manager.unallocated(UnitTypeId.ADEPT)
       probes = self.manager.unallocated(UnitTypeId.PROBE)
 
       if observers.exists:
         mission.unit = observers.closest_to(mission.targets[0])
-      elif zealots.exists:
-        mission.unit = zealots.closest_to(mission.targets[0])
+      elif adepts.exists:
+        mission.unit = adepts.closest_to(mission.targets[0])
       elif probes.exists:
         mission.unit = probes.closest_to(mission.targets[0])
 
@@ -314,9 +315,15 @@ class ProtossScoutingAdvisor(Advisor):
       known_enemy_units = Units(self.manager.advisor_data.scouting['enemy_army'].values(), self.manager).filter(is_combat_unit)
 
       if known_enemy_units.exists:
-        mission.targets = [ known_enemy_units.center ]
+        if mission.unit:
+          scout = mission.unit
+          towards_danger = known_enemy_units.center - scout.position
+          to_the_right = Point2([ towards_danger.y, -towards_danger.x ])
+          mission.targets = [ (scout.position + towards_danger).towards(to_the_right, 5) ]
+        else:
+          mission.targets = [ known_enemy_units.center ]
       else:
-        mission.targets = [ b.position for b in self.manager.enemy_structures(BaseStructures) ]
+        mission.targets = [ b.position for b in self.manager.enemy_structures ]
 
   def next_target(self, mission):
     if mission.targets:
@@ -346,5 +353,33 @@ class ProtossScoutingAdvisor(Advisor):
       if numObservers < 2:
         requests.append(TrainingRequest(UnitTypeId.OBSERVER, robo, urgency))
         numObservers += 1
+
+    return requests
+
+  async def build_gateway_units(self):
+    requests = []
+    gateways = self.manager.structures(UnitTypeId.GATEWAY)
+    warpgates = self.manager.structures(UnitTypeId.WARPGATE)
+    if (gateways + warpgates).empty:
+      return requests
+
+    numAdepts = self.manager.units(UnitTypeId.ADEPT).amount
+
+    if numAdepts >= 2:
+      return requests
+
+    if warpgates.idle.exists:
+      desired_unit = UnitTypeId.ADEPT
+      warpgate = warpgates.idle.random
+      abilities = await self.manager.get_available_abilities(warpgate)
+      if AbilityId.TRAINWARP_ADEPT in abilities:
+        pos = self.manager.structures(UnitTypeId.PYLON).closest_to(self.manager.rally_point).position.to2.random_on_distance([2, 5])
+        placement = await self.manager.find_placement(AbilityId.TRAINWARP_ADEPT, pos, placement_step=1)
+
+        if not placement is None:
+          requests.append(WarpInRequest(desired_unit, warpgate, placement, Urgency.HIGH))
+
+    if numAdepts < 2 and gateways.idle.exists and not self.manager.warpgate_complete:
+      requests.append(TrainingRequest(UnitTypeId.ADEPT, gateways.idle.first, Urgency.HIGH))
 
     return requests

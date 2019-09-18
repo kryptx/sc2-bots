@@ -47,6 +47,7 @@ class AdvisorBot(sc2.BotAI):
     self.rally_point = None
 
     self.desired_supply_buffer = 3
+    self.warpgate_complete = False
 
     self.planner = ProtossBasePlanner(self)
     self.economy_advisor = ProtossEconomyAdvisor(self)
@@ -92,6 +93,8 @@ class AdvisorBot(sc2.BotAI):
         fulfill_threshold = request.urgency
 
   async def on_upgrade_complete(self, upgrade):
+    if upgrade == UpgradeId.WARPGATERESEARCH:
+      self.warpgate_complete = True
     for advisor in self.advisors:
       await advisor.on_upgrade_complete(upgrade)
 

@@ -6,35 +6,20 @@ from sc2.constants import *
 from sc2.units import Units
 
 from burbage.advisors.advisor import Advisor
-from burbage.common import Urgency, TrainingRequest, WarpInRequest, StructureRequest, ResearchRequest, DefenseObjective, AttackObjective, BaseStructures, list_flatten
+from burbage.common import Urgency, TrainingRequest, WarpInRequest, StructureRequest, ResearchRequest
+from burbage.common import DefenseObjective, AttackObjective, BaseStructures, CombatUnits, list_flatten, optimism
 
 BASE_DEFENSE_RADIUS = 35
-
-# class DefenseMission():
-#   def __init__(self, target):
-#     self.last_visible = 0
-#     self.target = target
-#     self.defenders = []
-#     self.desired_unit_quantity = 2
-#     self.enemy_killed = False
-
-#   def is_complete(self, now, bases):
-#     return self.enemy_killed or now - self.last_visible > 10 or all(base.position.is_further_than(BASE_DEFENSE_RADIUS, self.target.position) for base in bases)
 
 class PvPStrategyAdvisor(Advisor):
   def __init__(self, manager):
     super().__init__(manager)
-    self.warpgate_complete = False
     self.objectives = []
     self.last_defense_check = dict() # enemy tag: time
 
   @property
   def defenders(self):
     return list_flatten([ objective.allocated for objective in self.objectives if isinstance(objective, DefenseObjective) ])
-
-  async def on_upgrade_complete(self, upgrade):
-    if upgrade == UpgradeId.WARPGATERESEARCH:
-      self.warpgate_complete = True
 
   async def on_unit_destroyed(self, unit):
     for objective in self.objectives:
@@ -71,27 +56,32 @@ class PvPStrategyAdvisor(Advisor):
         self.manager.do(nexus(AbilityId.EFFECT_CHRONOBOOSTENERGYCOST, gate.random))
 
   def allocate_units(self):
-    if (self.manager.supply_used > 196 or self.fuckedness_ratio() < 0.5) and not any(isinstance(objective, AttackObjective) for objective in self.objectives):
-      self.objectives.append(AttackObjective(self.manager, self.manager.enemy_structures(BaseStructures).furthest_to(self.manager.enemy_start_locations[0])))
-
+    enemy_units = self.manager.enemy_units.filter(lambda u: u.type_id not in [ UnitTypeId.PROBE, UnitTypeId.DRONE, UnitTypeId.SCV ])
+    opt = optimism(self.manager.units(CombatUnits), enemy_units)
+    if (self.manager.supply_used > 196 or opt > 2.5) and not any(
+      isinstance(objective, AttackObjective)
+      for objective in self.objectives
+    ):
+      print(f"Creating attack mission because none exists. optimism is currently {opt}, supply {self.manager.supply_used}")
+      enemy_bases = self.manager.enemy_structures(BaseStructures)
+      if enemy_bases.exists:
+        self.objectives.append(AttackObjective(self.manager, enemy_bases.furthest_to(self.manager.enemy_start_locations[0]).position))
+      elif self.manager.enemy_structures.exists:
+        self.objectives.append(AttackObjective(self.manager, self.manager.enemy_structures.closest_to(self.manager.units.center).position))
+      else:
+        self.objectives.append(AttackObjective(self.manager, self.manager.enemy_start_locations[0]))
     # Morph any archons
     for templar in self.manager.units(UnitTypeId.HIGHTEMPLAR):
       self.manager.do(templar(AbilityId.MORPH_ARCHON))
 
   def handle_threats(self):
-    targeted_tags = [ objective.target.tag for objective in self.objectives ]
-    threatened_bases = self.manager.townhalls.filter(lambda nex: self.manager.enemy_units.closer_than(30, nex).exists and nex.tag not in targeted_tags)
-    for base in threatened_bases:
-      self.objectives.append(DefenseObjective(self.manager, base))
+    threatened_bases = self.manager.townhalls.filter(lambda nex: self.manager.enemy_units.closer_than(25, nex).exists)
+    if threatened_bases.exists and not any(isinstance(objective, DefenseObjective) for objective in self.objectives):
+      self.objectives.append(DefenseObjective(self.manager))
 
-  def army_dps(self):
-    return sum([ max(u.ground_dps, u.air_dps) for u in self.manager.units if u.ground_dps > 5 or u.air_dps > 0 ])
-
-  def army_max_hp(self):
-    return sum([ u.health_max + u.shield_max for u in self.manager.units if u.ground_dps > 5 or u.air_dps > 0 ])
-
-  def fuckedness_ratio(self):
-    return (self.manager.scouting_advisor.enemy_army_dps() * self.manager.scouting_advisor.enemy_army_max_hp() + 100) / (self.army_dps() * self.army_max_hp() + 100)
+    vigilantes = self.manager.unallocated().filter(lambda u: u.weapon_cooldown > 0 and u.position.is_further_than(15, self.manager.rally_point))
+    for vigilante in vigilantes:
+      self.manager.do(vigilante.move(self.manager.rally_point))
 
   async def build_gateway_units(self):
     requests = []
@@ -109,7 +99,8 @@ class PvPStrategyAdvisor(Advisor):
 
     # Veryhigh is still only 2 (LOW) away from LIFEORDEATH
     # i.e. even if no cheese it only takes a ratio of 3 to be in a life or death urgency situation (will cut probes)
-    army_priority += min(Urgency.VERYHIGH, max(0, math.floor(self.fuckedness_ratio() * 4)))
+    # use optimism in denominator to increase priority when optimism is low
+    army_priority += min(Urgency.VERYHIGH, max(0, math.floor(6 / optimism(self.manager.units, self.manager.advisor_data.scouting['enemy_army'].values()))))
     urgency = Urgency.LOW + army_priority
 
     counts = {
@@ -147,7 +138,7 @@ class PvPStrategyAdvisor(Advisor):
 
     gateways = self.manager.structures(UnitTypeId.GATEWAY)
 
-    if gateways.idle.exists and not self.warpgate_complete:
+    if gateways.idle.exists and not self.manager.warpgate_complete:
       for g in gateways.idle:
         desired_unit = UnitTypeId.STALKER
         if counts[UnitTypeId.ZEALOT] < counts[UnitTypeId.STALKER] or self.manager.vespene < 50:
@@ -190,7 +181,7 @@ class PvPStrategyAdvisor(Advisor):
       elif AbilityId.FORGERESEARCH_PROTOSSSHIELDSLEVEL3 in forge_abilities:
         requests.append(ResearchRequest(AbilityId.FORGERESEARCH_PROTOSSSHIELDSLEVEL3, idle_forge, Urgency.LOW))
 
-    if self.warpgate_complete:
+    if self.manager.warpgate_complete:
       for busy_forge in self.manager.structures(UnitTypeId.FORGE).filter(lambda f: not f.is_idle and not f.has_buff(BuffId.CHRONOBOOSTENERGYCOST)):
         for nexus in self.manager.townhalls:
           abilities = await self.manager.get_available_abilities(nexus)
