@@ -69,6 +69,7 @@ class AdvisorBot(sc2.BotAI):
       if not repo.is_dirty():
         sha = repo.head.object.hexsha
         await self.chat_send("AdvisorBot verified hash: " + sha[0:10])
+      await self.chat_send("(glhf)(cake)(sc2)")
 
   async def on_step(self, iteration):
     await self.report_version()
