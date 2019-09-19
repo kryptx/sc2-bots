@@ -58,7 +58,6 @@ class PvPStrategyAdvisor(Advisor):
         self.manager.do(nexus(AbilityId.EFFECT_CHRONOBOOSTENERGYCOST, gate.random))
 
   def allocate_units(self):
-
     if self.manager.time - self.last_status >= 2:
       self.last_status = self.manager.time
       print(f"optimism {self.optimism}, supply {self.manager.supply_used}")
@@ -104,9 +103,8 @@ class PvPStrategyAdvisor(Advisor):
       army_priority += 2
 
     # Veryhigh is still only 2 (LOW) away from LIFEORDEATH
-    # i.e. even if no cheese it only takes a ratio of 3 to be in a life or death urgency situation (will cut probes)
     # use optimism in denominator to increase priority when optimism is low
-    army_priority += min(Urgency.VERYHIGH, max(0, math.floor(4 / self.optimism)))
+    army_priority += min(Urgency.VERYHIGH, max(0, math.floor(1 / self.optimism)))
     urgency = Urgency.LOW + army_priority
 
     counts = {
