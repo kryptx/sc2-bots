@@ -16,6 +16,7 @@ class PvPStrategyAdvisor(Advisor):
     super().__init__(manager)
     self.objectives = []
     self.last_defense_check = dict() # enemy tag: time
+    self.last_status = 1
 
   @property
   def defenders(self):
@@ -27,6 +28,7 @@ class PvPStrategyAdvisor(Advisor):
 
   async def tick(self):
     self.manager.rally_point = self.determine_rally_point()
+    self.optimism = optimism(self.manager.units(CombatUnits), self.manager.advisor_data.scouting['enemy_army'].values())
     requests = self.audit_structures()
     requests += await self.audit_research()
     requests += await self.build_gateway_units()
@@ -56,13 +58,16 @@ class PvPStrategyAdvisor(Advisor):
         self.manager.do(nexus(AbilityId.EFFECT_CHRONOBOOSTENERGYCOST, gate.random))
 
   def allocate_units(self):
-    enemy_units = self.manager.enemy_units.filter(lambda u: u.type_id not in [ UnitTypeId.PROBE, UnitTypeId.DRONE, UnitTypeId.SCV ])
-    opt = optimism(self.manager.units(CombatUnits), enemy_units)
-    if (self.manager.supply_used > 196 or opt > 2.5) and not any(
+
+    if self.manager.time - self.last_status >= 2:
+      self.last_status = self.manager.time
+      print(f"optimism {self.optimism}, supply {self.manager.supply_used}")
+
+    if (self.manager.supply_used > 196 or self.optimism > 2) and not any(
       isinstance(objective, AttackObjective)
       for objective in self.objectives
     ):
-      print(f"Creating attack mission because none exists. optimism is currently {opt}, supply {self.manager.supply_used}")
+
       enemy_bases = self.manager.enemy_structures(BaseStructures)
       if enemy_bases.exists:
         self.objectives.append(AttackObjective(self.manager, enemy_bases.furthest_to(self.manager.enemy_start_locations[0]).position))
@@ -75,11 +80,12 @@ class PvPStrategyAdvisor(Advisor):
       self.manager.do(templar(AbilityId.MORPH_ARCHON))
 
   def handle_threats(self):
-    threatened_bases = self.manager.townhalls.filter(lambda nex: self.manager.enemy_units.closer_than(25, nex).exists)
-    if threatened_bases.exists and not any(isinstance(objective, DefenseObjective) for objective in self.objectives):
+    #enemies within 20 units of at least 2 of my structures
+    threatening_enemies = self.manager.enemy_units.filter(lambda enemy: self.manager.structures.closer_than(20, enemy).amount > 1)
+    if threatening_enemies.exists and not any(isinstance(objective, DefenseObjective) for objective in self.objectives):
       self.objectives.append(DefenseObjective(self.manager))
 
-    vigilantes = self.manager.unallocated().filter(lambda u: u.weapon_cooldown > 0 and u.position.is_further_than(15, self.manager.rally_point))
+    vigilantes = self.manager.unallocated().filter(lambda u: u.position.is_further_than(15, self.manager.rally_point))
     for vigilante in vigilantes:
       self.manager.do(vigilante.move(self.manager.rally_point))
 
@@ -100,7 +106,7 @@ class PvPStrategyAdvisor(Advisor):
     # Veryhigh is still only 2 (LOW) away from LIFEORDEATH
     # i.e. even if no cheese it only takes a ratio of 3 to be in a life or death urgency situation (will cut probes)
     # use optimism in denominator to increase priority when optimism is low
-    army_priority += min(Urgency.VERYHIGH, max(0, math.floor(6 / optimism(self.manager.units, self.manager.advisor_data.scouting['enemy_army'].values()))))
+    army_priority += min(Urgency.VERYHIGH, max(0, math.floor(4 / self.optimism)))
     urgency = Urgency.LOW + army_priority
 
     counts = {

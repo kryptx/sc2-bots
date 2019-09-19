@@ -117,7 +117,7 @@ class ProtossScoutingAdvisor(Advisor):
 
     if self.manager.units(UnitTypeId.ZEALOT).idle.exists and any(m.unit and m.unit.type_id == UnitTypeId.PROBE and m.mission not in early_missions for m in self.missions):
       missions = list(self.missions)
-      broken_mission = next(m for m in missions if m.unit.type_id == UnitTypeId.PROBE)
+      broken_mission = next(m for m in missions if m.unit and m.unit.type_id == UnitTypeId.PROBE and m.mission not in early_missions)
       self.release_scout(broken_mission.unit)
       broken_mission.unit = None
 
@@ -311,7 +311,7 @@ class ProtossScoutingAdvisor(Advisor):
 
     if mission.mission == ScoutingMissionType.WATCH_ENEMY_ARMY:
       # what combat units do we know about?
-      is_combat_unit = lambda e: (e.ground_dps > 5 or e.air_dps > 5 or e.energy_max > 0)
+      is_combat_unit = lambda e: (e.type_id not in (UnitTypeId.PROBE, UnitTypeId.DRONE, UnitTypeId.SCV))
       known_enemy_units = Units(self.manager.advisor_data.scouting['enemy_army'].values(), self.manager).filter(is_combat_unit)
 
       if known_enemy_units.exists:
@@ -319,7 +319,7 @@ class ProtossScoutingAdvisor(Advisor):
           scout = mission.unit
           towards_danger = known_enemy_units.center - scout.position
           to_the_right = Point2([ towards_danger.y, -towards_danger.x ])
-          mission.targets = [ (scout.position + towards_danger).towards(to_the_right, 5) ]
+          mission.targets = [ (known_enemy_units.center).towards(known_enemy_units.center + to_the_right, 2) ]
         else:
           mission.targets = [ known_enemy_units.center ]
       else:

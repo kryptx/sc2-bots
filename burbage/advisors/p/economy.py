@@ -81,7 +81,7 @@ class ProtossEconomyAdvisor(Advisor):
     # to fill up your first assimilator, you'll need these
     mining_workers = self.manager.workers.filter(lambda p:
       # if more are needed, this is okay too
-      p.is_gathering and p.orders[0].target in acceptable_mineral_tags or p.is_carrying_minerals
+      p.is_gathering and (p.orders[0].target in acceptable_mineral_tags or p.is_carrying_minerals)
     ) - (bad_workers + excess_workers)
 
     usable_workers = bad_workers + excess_workers + mining_workers

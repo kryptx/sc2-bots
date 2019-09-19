@@ -106,7 +106,7 @@ class AdvisorBot(sc2.BotAI):
     return Point2.center([nex.position for nex in self.townhalls])
 
   def unallocated(self, unit_types=None, urgency=Urgency.NONE):
-    units = self.units(unit_types) if unit_types else self.units
+    units = self.units(unit_types) if unit_types else self.units.filter(lambda u: u.type_id != UnitTypeId.PROBE)
     return units.tags_not_in(list_flatten([
       list(objective.allocated)
       for objective in self.strategy_advisor.objectives

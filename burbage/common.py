@@ -162,12 +162,13 @@ class StrategicObjective():
     self.status_since = self.manager.time
 
   def tick(self):
-    self.last_seen = self.manager.time if self.enemies.exists else self.last_seen
+    if self.manager.enemy_units.tags_in([enemy.tag for enemy in self.enemies]).exists:
+      self.last_seen = self.manager.time
     if self.status >= ObjectiveStatus.ALLOCATING:
       self.allocate()
     if self.status == ObjectiveStatus.STAGING:
       self.stage()
-    if self.status >= ObjectiveStatus.ACTIVE:
+    if self.status == ObjectiveStatus.ACTIVE:
       self.micro()
     if self.status == ObjectiveStatus.RETREATING:
       self.retreat()
@@ -187,38 +188,35 @@ class StrategicObjective():
       return
 
     if self.status == ObjectiveStatus.ACTIVE:
-      visible_enemies = self.manager.enemy_units.filter(lambda u: u.tag in self.enemies)
-      for unit in self.units:
-        if visible_enemies.exists:
-          self.manager.do(unit.attack(self.enemies.closest_to(unit.position)))
-        else:
-          self.manager.do(unit.attack(self.manager.enemy_structures.closest_to(unit.position).position))
+      for unit in self.units.filter(lambda u: type(u.order_target).__name__ in [ 'NoneType', 'int' ] or u.order_target.is_further_than(3, self.target)):
+        self.manager.do(unit.attack(self.target))
 
-    nearby_enemies = {
+    nearby_enemies = Units(list({
       enemy_unit
       for (friendly_unit, enemy_unit) in itertools.product(self.units, self.enemies)
-      if enemy_unit.position.is_closer_than(15, friendly_unit)
-    }
-    if optimism(self.units, nearby_enemies) < 1:
-      self.log(f"*****RETREATING***** {len(nearby_enemies)} enemies, {self.units.amount} units")
-      self.status = ObjectiveStatus.RETREATING
-      self.status_since = self.manager.time
+      if enemy_unit.position.is_closer_than(8, friendly_unit)
+    }), self.manager)
+    if nearby_enemies.exists:
+      nearby_allies = self.units.closer_than(30, nearby_enemies.center)
+      if optimism(nearby_allies, nearby_enemies) < 0.75:
+        self.log(f"*****RETREATING***** {nearby_enemies.amount} enemies, {self.units.amount} units ({nearby_allies.amount} nearby)")
+        self.status = ObjectiveStatus.RETREATING
+        self.status_since = self.manager.time
     return
 
   def retreat(self):
-    self.rendezvous = self.staging_base()
+    self.rendezvous = Point2.center([ self.manager.rally_point, self.units.center ])
     for retreating_unit in self.units:
       if retreating_unit.position.is_further_than(5, self.rendezvous):
         self.retreat_unit(retreating_unit, Point2.center([ self.units.center, self.rendezvous ]))
-    if all(unit.position.is_closer_than(10, self.rendezvous) for unit in self.units):
-      self.allocated.clear()
 
-  def staging_base(self):
-    bases = self.manager.townhalls.filter(lambda nex: self.manager.enemy_units.closer_than(10, nex).empty)
-    if not bases.exists:
-      return self.manager.start_location
-    target_position = self.manager.enemy_units.center if self.manager.enemy_units.exists else self.manager.enemy_start_locations[0]
-    return bases.closest_to(target_position).position.towards(self.manager.start_location, 5)
+    local_opt = optimism(self.units.closer_than(10, self.units.center), self.enemies)
+    if local_opt > 3:
+      print(f"Returning to staging because local optimism is {local_opt}")
+      self.status = ObjectiveStatus.STAGING
+      self.status_since = self.manager.time
+    elif all(unit.position.is_closer_than(10, self.rendezvous) for unit in self.units):
+      self.allocated.clear()
 
   def stage(self):
     allocated_units = self.units
@@ -231,10 +229,11 @@ class StrategicObjective():
       self.status_since = self.manager.time
       return
 
-    if self.manager.time - self.status_since > 3:
-      for attacking_unit in allocated_units:
-        self.manager.do(attacking_unit.attack(self.target.position))
-      self.log("Upgrading to active because staging phase lasted over 3 seconds")
+    if self.manager.time - self.status_since > 2 and any(
+      unit.engaged_target_tag in (u.tag for u in allocated_units)
+      for unit in self.manager.enemy_units
+    ):
+      self.log("Upgrading to active because staging lasted 2 seconds and we are being attacked")
       self.status = ObjectiveStatus.ACTIVE
       self.status_since = self.manager.time
       return
@@ -242,19 +241,26 @@ class StrategicObjective():
     if not self.rendezvous:
       for attacking_unit in allocated_units:
         self.manager.do(attacking_unit.attack(self.target.position))
-      if any(enemy.target_in_range(friendly, bonus_distance=3) for (enemy, friendly) in itertools.product(self.manager.enemy_units, allocated_units)):
+      if any(enemy.position.is_closer_than(10, friendly) for (enemy, friendly) in itertools.product(self.manager.enemy_units + self.manager.enemy_structures, allocated_units)):
         self.rendezvous = allocated_units.center
 
     if not self.rendezvous:
       return
 
-    if all(unit.position.is_closer_than(10, self.rendezvous) for unit in allocated_units):
+    if allocated_units.closer_than(10, self.rendezvous).amount > allocated_units.amount * 0.75:
       for attacking_unit in allocated_units:
         self.manager.do(attacking_unit.attack(self.target.position))
-      self.log("Upgrading to active after rendezvous")
+      self.log("Upgrading to active after at least 75% of units arrived at rendezvous")
       self.status = ObjectiveStatus.ACTIVE
       self.status_since = self.manager.time
       return
+
+    if self.manager.enemy_units.closer_than(15, self.rendezvous).amount > 3:
+      for attacking_unit in allocated_units:
+        self.manager.do(attacking_unit.attack(self.target.position))
+      self.log("Upgrading to active due to enemy units at rendezvous")
+      self.status = ObjectiveStatus.ACTIVE
+      self.status_since = self.manager.time
 
     for attacking_unit in allocated_units:
       if attacking_unit.type_id == UnitTypeId.STALKER:
@@ -267,14 +273,13 @@ class StrategicObjective():
   def allocate(self):
     fully_allocated = False
     enemy_units = self.enemies
-    already_allocated_units = self.manager.units.tags_in(self.allocated)
-    needed_units = int(enemy_units.amount - already_allocated_units.amount)
-    wanted_units = self.wanted_units()
+    needed_units = min(40, int(enemy_units.amount)) # don't bother unless you can get this number
+    wanted_units = self.wanted_units() # all units for attacks, just a few extra for defense
     if wanted_units <= 0:
       fully_allocated = True
     else:
       usable_units = self.manager.unallocated(CombatUnits, self.urgency)
-      if usable_units.amount >= needed_units:
+      if usable_units.amount >= needed_units or self.status >= ObjectiveStatus.STAGING:
         adding_units = set(unit.tag for unit in usable_units.closest_n_units(self.target.position, wanted_units))
         for objective in self.manager.strategy_advisor.objectives:
           objective.allocated.difference_update(adding_units)
@@ -284,7 +289,7 @@ class StrategicObjective():
 
     if fully_allocated:
       if self.status == ObjectiveStatus.ALLOCATING:
-        self.log("Upgraded to staging")
+        self.log("approved for staging")
         self.status = ObjectiveStatus.STAGING
         self.status_since = self.manager.time
 
@@ -297,17 +302,15 @@ class AttackObjective(StrategicObjective):
   def __init__(self, manager, target, urgency=Urgency.MEDIUM, rendezvous=None):
     super().__init__(manager, urgency, rendezvous)
     self.target = target
-    self.log("creating attack objective")
 
   def is_complete(self):
     completed = False
     if self.units.empty:
       completed = True
-      self.log("completed because it has no units")
     elif self.status == ObjectiveStatus.RETREATING and all(unit.position.is_closer_than(10, self.rendezvous) for unit in self.units):
       completed = True
       self.log("completed because we finished retreating")
-    elif self.status == self.manager.enemy_structures.closer_than(5, self.target.position).empty:
+    elif self.manager.enemy_structures.closer_than(5, self.target.position).empty:
       completed = True
       self.log("completed because target location has been successfully cleared")
 
@@ -317,6 +320,7 @@ class DefenseObjective(StrategicObjective):
   def __init__(self, manager, urgency=Urgency.HIGH, rendezvous=None):
     super().__init__(manager, urgency, rendezvous)
     self.log("creating defense objective")
+    self.last_seen = manager.time
 
   @property
   def target(self):
@@ -338,7 +342,7 @@ class DefenseObjective(StrategicObjective):
       self.manager.advisor_data.scouting['enemy_army'].values(),
       self.manager
     ).filter(lambda enemy:
-      any(nex.position.is_closer_than(25, enemy) for nex in self.manager.townhalls)
+      self.manager.structures.closer_than(20, enemy.position).amount > 1
     )
 
   def stage(self):
@@ -350,4 +354,7 @@ class DefenseObjective(StrategicObjective):
     pass
 
   def wanted_units(self):
-    return 3 if optimism(self.units, self.enemies) < 3 else 0
+    if self.enemies.amount < 10:
+      return 3 if optimism(self.units, self.enemies) < 3 else 0
+    else:
+      return self.manager.units.amount
