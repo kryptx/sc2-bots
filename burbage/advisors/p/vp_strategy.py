@@ -32,7 +32,7 @@ class PvPStrategyAdvisor(Advisor):
       await self.manager._client.leave()
 
     self.optimism = optimism(self.manager.units(CombatUnits), self.manager.advisor_data.scouting['enemy_army'].values())
-    if self.optimism < 0.01:
+    if self.optimism < 0.01 and not self.surrender_declared:
       self.surrender_declared = self.manager.time
       await self.manager.chat_send("(gg)")
 

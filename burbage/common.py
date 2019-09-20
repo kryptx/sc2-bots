@@ -192,6 +192,12 @@ class StrategicObjective():
       for unit in self.units:
         self.manager.do(unit.attack(self.target.position))
 
+    cooling_down_units = self.units.filter(lambda u: u.weapon_cooldown > 0)
+    if cooling_down_units.amount < self.units.amount / 4:
+      for unit in cooling_down_units:
+        self.manager.do(unit.move(unit.position.towards(self.target, 2)))
+        self.manager.do(unit.attack(self.target.position, queue=True))
+
     nearby_enemies = Units(list({
       enemy_unit
       for (friendly_unit, enemy_unit) in itertools.product(self.units, self.enemies)
