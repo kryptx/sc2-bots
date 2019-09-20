@@ -205,7 +205,7 @@ class StrategicObjective():
     }), self.manager)
     if nearby_enemies.exists:
       nearby_allies = self.units.closer_than(30, nearby_enemies.center)
-      if optimism(nearby_allies, nearby_enemies) < 0.75:
+      if nearby_allies.amount > 1 and self.manager.strategy_advisor.optimism < 2 and optimism(nearby_allies, nearby_enemies) < 0.75:
         self.log(f"*****RETREATING***** {nearby_enemies.amount} enemies, {self.units.amount} units ({nearby_allies.amount} nearby)")
         self.status = ObjectiveStatus.RETREATING
         self.status_since = self.manager.time
