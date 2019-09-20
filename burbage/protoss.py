@@ -115,7 +115,7 @@ class AdvisorBot(sc2.BotAI):
     ]) + list(self.tagged_units.scouting))
 
 def main():
-  sc2.run_game(sc2.maps.get("TurboCruise'84LE"), [
+  sc2.run_game(sc2.maps.get("CyberForestLE"), [
     Bot(Race.Protoss, AdvisorBot()),
     Computer(Race.Protoss, Difficulty.VeryHard)
   ], realtime=False)

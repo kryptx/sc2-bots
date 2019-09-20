@@ -187,9 +187,10 @@ class StrategicObjective():
       self.log("no units to micro")
       return
 
-    if self.status == ObjectiveStatus.ACTIVE:
-      for unit in self.units.filter(lambda u: type(u.order_target).__name__ in [ 'NoneType', 'int' ] or u.order_target.is_further_than(3, self.target)):
-        self.manager.do(unit.attack(self.target))
+    if self.status == ObjectiveStatus.ACTIVE and self.manager.time - self.status_since > 2:
+      self.status_since = self.manager.time
+      for unit in self.units:
+        self.manager.do(unit.attack(self.target.position))
 
     nearby_enemies = Units(list({
       enemy_unit
