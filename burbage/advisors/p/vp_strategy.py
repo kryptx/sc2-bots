@@ -34,7 +34,7 @@ class PvPStrategyAdvisor(Advisor):
     self.optimism = optimism(self.manager.units(CombatUnits), self.manager.advisor_data.scouting['enemy_army'].values())
     if self.optimism < 0.01 and not self.surrender_declared:
       self.surrender_declared = self.manager.time
-      await self.manager.chat_send("(gg)")
+      await self.manager.chat_send("(hearts)(hearts)(hearts)(gg)(hearts)(hearts)(hearts)")
 
     self.manager.rally_point = self.determine_rally_point()
     requests = self.audit_structures()
