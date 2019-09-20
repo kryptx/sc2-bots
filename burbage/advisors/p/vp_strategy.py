@@ -18,6 +18,7 @@ class PvPStrategyAdvisor(Advisor):
     self.last_defense_check = dict() # enemy tag: time
     self.last_status = 1
     self.surrender_declared = False
+    self.optimism = 1
 
   @property
   def defenders(self):
@@ -34,7 +35,7 @@ class PvPStrategyAdvisor(Advisor):
     self.optimism = optimism(self.manager.units(CombatUnits), self.manager.advisor_data.scouting['enemy_army'].values())
     if self.optimism < 0.01 and not self.surrender_declared:
       self.surrender_declared = self.manager.time
-      await self.manager.chat_send("(hearts)(hearts)(hearts)(gg)(hearts)(hearts)(hearts)")
+      await self.manager.chat_send("(gameheart)(gg)(gameheart)")
 
     self.manager.rally_point = self.determine_rally_point()
     requests = self.audit_structures()

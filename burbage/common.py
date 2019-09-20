@@ -127,7 +127,7 @@ def list_flatten(list_of_lists):
   return [item for sublist in list_of_lists for item in sublist]
 
 def optimism(units, enemy_units):
-  return float(dps(units) * max_hp(units) + 1000) / float(dps(enemy_units) * max_hp(enemy_units) + 1000)
+  return float(dps(units) * max_hp(units) + 2500) / float(dps(enemy_units) * max_hp(enemy_units) + 2500)
 
 def dps(units):
   return sum(u.ground_dps for u in units)
@@ -212,7 +212,7 @@ class StrategicObjective():
     return
 
   def retreat(self):
-    self.rendezvous = Point2.center([ self.manager.rally_point, self.units.center ])
+    self.rendezvous = Point2.center([ self.manager.rally_point, self.units.center if self.units.exists else self.manager.game_info.map_center ])
     for retreating_unit in self.units:
       if retreating_unit.position.is_further_than(5, self.rendezvous):
         self.retreat_unit(retreating_unit, Point2.center([ self.units.center, self.rendezvous ]))

@@ -42,6 +42,8 @@ class AdvisorBot(sc2.BotAI):
 
   def __init__(self):
     self.version_reported = False
+    self.highest_optimism_reported = 1
+    self.lowest_optimism_reported = 1
     self.advisor_data = AdvisorData()
     self.tagged_units = UnitAllocation()
     self.rally_point = None
@@ -62,7 +64,7 @@ class AdvisorBot(sc2.BotAI):
       self.scouting_advisor
     ]
 
-  async def report_version(self):
+  async def chit_chat(self):
     if not self.version_reported:
       self.version_reported = True
       repo = Repo(search_parent_directories=True)
@@ -70,9 +72,28 @@ class AdvisorBot(sc2.BotAI):
         sha = repo.head.object.hexsha
         await self.chat_send("AdvisorBot verified hash: " + sha[0:10])
       await self.chat_send("(glhf)(cake)(sc2)")
+    if self.time < 60:
+      return
+    if self.highest_optimism_reported < 5 and self.strategy_advisor.optimism > 5:
+      self.highest_optimism_reported = 5
+      await self.chat_send("I think I got this")
+
+    if self.highest_optimism_reported < 10 and self.strategy_advisor.optimism > 10:
+      self.highest_optimism_reported = 10
+      await self.chat_send("(flex) Advisors did it again folks (flex)")
+
+    enemy_fighters = self.enemy_units.filter(lambda u: u.type_id not in (UnitTypeId.PROBE, UnitTypeId.DRONE, UnitTypeId.SCV))
+    if enemy_fighters.amount > 10:
+      if self.lowest_optimism_reported > 0.2 and self.strategy_advisor.optimism < 0.2:
+        self.lowest_optimism_reported = 0.2
+        await self.chat_send("whoa... (scared) ")
+
+      if self.lowest_optimism_reported > 0.1 and self.strategy_advisor.optimism < 0.1:
+        self.lowest_optimism_reported = 0.1
+        await self.chat_send("this is not good. (salty)")
 
   async def on_step(self, iteration):
-    await self.report_version()
+    await self.chit_chat()
     requests = []
     self.desired_supply_buffer = 2 + self.structures({ UnitTypeId.WARPGATE, UnitTypeId.GATEWAY }).amount * 2.5
     for advisor in self.advisors:
@@ -121,7 +142,7 @@ maps = [
   "(2)16-BitLE",
   "(2)DreamcatcherLE",
   "(2)LostandFoundLE",
-  "(2)RedshifLE",
+  "(2)RedshiftLE",
   "(4)DarknessSanctuaryLE",
   "AbiogenesisLE",
   "AbyssalReefLE",
@@ -151,7 +172,7 @@ maps = [
   "KingsCoveLE",
   "MechDepotLE",
   "NeonVioletSquareLE",
-  "NewkirkPrecinctLE",
+  "NewkirkPrecinctTE",
   "NewRepugnancyLE",
   "OdysseyLE",
   "PaladinoTerminalLE",
