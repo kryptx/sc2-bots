@@ -117,8 +117,58 @@ class AdvisorBot(sc2.BotAI):
       if objective.urgency and objective.urgency >= urgency
     ]) + list(self.tagged_units.scouting))
 
+maps = [
+  "(2)16-BitLE",
+  "(2)DreamcatcherLE",
+  "(2)LostandFoundLE",
+  "(2)RedshifLE",
+  "(4)DarknessSanctuaryLE",
+  "AbiogenesisLE",
+  "AbyssalReefLE",
+  "AcidPlantLE",
+  "AcolyteLE",
+  "AcropolisLE",
+  "AscensionToAiurLE",
+  "AutomatonLE",
+  "BackwaterLE",
+  "BattleontheBoardwalkLE",
+  "BelShifVestigeLE",
+  "BlackpinkLE",
+  "BloodBoilLE",
+  "BlueshiftLE",
+  "CactusValleyLE",
+  "CatalystLE",
+  "CeruleanFallLE",
+  "CyberForestLE",
+  "DefendersLandingLE",
+  "DiscoBloodbathLE",
+  "EastwatchLE",
+  "EphemeronLE",
+  "FrostLE",
+  "HonorGroundsLE",
+  "InterloperLE",
+  "KairosJunctionLE",
+  "KingsCoveLE",
+  "MechDepotLE",
+  "NeonVioletSquareLE",
+  "NewkirkPrecinctLE",
+  "NewRepugnancyLE",
+  "OdysseyLE",
+  "PaladinoTerminalLE",
+  "ParaSiteLE",
+  "PortAleksanderLE",
+  "ProximaStationLE",
+  "SequencerLE",
+  "StasisLE",
+  "ThunderbirdLE",
+  "TritonLE",
+  "TurboCruise'84LE",
+  "WintersGateLE",
+  "WorldofSleepersLE"
+]
+
 def main():
-  sc2.run_game(sc2.maps.get("CyberForestLE"), [
+  sc2.run_game(sc2.maps.get(random.choice(maps)), [
     Bot(Race.Protoss, AdvisorBot()),
     Computer(Race.Protoss, Difficulty.VeryHard)
   ], realtime=False)

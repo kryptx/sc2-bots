@@ -193,7 +193,7 @@ class StrategicObjective():
         self.manager.do(unit.attack((self.manager.enemy_units + self.manager.enemy_structures).closest_to(self.target).position))
 
     cooling_down_units = self.units.filter(lambda u: u.weapon_cooldown > 0)
-    if cooling_down_units.amount < self.units.amount / 4:
+    if cooling_down_units.amount < self.units.amount / 3:
       for unit in cooling_down_units:
         self.manager.do(unit.move(unit.position.towards(self.target, 2)))
         self.manager.do(unit.attack(self.target.position, queue=True))
@@ -364,4 +364,4 @@ class DefenseObjective(StrategicObjective):
     if self.enemies.amount < 10:
       return 3 if optimism(self.units, self.enemies) < 3 else 0
     else:
-      return self.manager.units.amount
+      return self.manager.units(CombatUnits).amount - self.units.amount

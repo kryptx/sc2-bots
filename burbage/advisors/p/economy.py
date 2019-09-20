@@ -207,9 +207,9 @@ class ProtossEconomyAdvisor(Advisor):
     mineable = self.sum_mineral_contents(nodes)
 
     if not self.manager.already_pending(UnitTypeId.NEXUS):
-      # if they're out-expanding us
-      if self.manager.enemy_structures(BaseStructures).amount > self.manager.townhalls.amount:
-        nexus_urgency += 2
+      enemy_bases = self.manager.enemy_structures(BaseStructures)
+      # if we're not out-expanding them
+      nexus_urgency = 1 + enemy_bases.amount - self.manager.townhalls.amount
 
       # if any of our workers don't have enough to do
       if self.manager.workers.amount >= (len(nodes) * 2 + assimilators.filter(lambda a: a.vespene_contents > 0).amount*2): # deliberately below full saturation
