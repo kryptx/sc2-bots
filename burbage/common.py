@@ -190,7 +190,7 @@ class StrategicObjective():
     if self.status == ObjectiveStatus.ACTIVE and self.manager.time - self.status_since > 2:
       self.status_since = self.manager.time
       for unit in self.units:
-        self.manager.do(unit.attack(self.target.position))
+        self.manager.do(unit.attack((self.manager.enemy_units + self.manager.enemy_structures).closest_to(self.target).position))
 
     cooling_down_units = self.units.filter(lambda u: u.weapon_cooldown > 0)
     if cooling_down_units.amount < self.units.amount / 4:
@@ -317,7 +317,7 @@ class AttackObjective(StrategicObjective):
     elif self.status == ObjectiveStatus.RETREATING and all(unit.position.is_closer_than(10, self.rendezvous) for unit in self.units):
       completed = True
       self.log("completed because we finished retreating")
-    elif self.manager.enemy_structures.closer_than(5, self.target.position).empty:
+    elif (self.manager.enemy_structures + self.manager.enemy_units).closer_than(10, self.target.position).empty:
       completed = True
       self.log("completed because target location has been successfully cleared")
 

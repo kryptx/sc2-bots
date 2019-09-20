@@ -77,6 +77,9 @@ class AdvisorBot(sc2.BotAI):
     self.desired_supply_buffer = 2 + self.structures({ UnitTypeId.WARPGATE, UnitTypeId.GATEWAY }).amount * 2.5
     for advisor in self.advisors:
       advisorResult = await advisor.tick()
+      if advisorResult == None:
+        print("exiting due to surrender")
+        return
       requests.extend(advisorResult)
 
     requests.sort(key=urgencyValue, reverse=True)

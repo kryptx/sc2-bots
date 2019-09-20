@@ -28,8 +28,8 @@ class PvPStrategyAdvisor(Advisor):
       objective.allocated.discard(unit)
 
   async def tick(self):
-    if self.surrender_declared and self.manager.time - self.surrender_declared > 2:
-      await self.manager._client.leave()
+    if self.surrender_declared and self.manager.time - self.surrender_declared > 5:
+      return await self.manager._client.leave()
 
     self.optimism = optimism(self.manager.units(CombatUnits), self.manager.advisor_data.scouting['enemy_army'].values())
     if self.optimism < 0.01 and not self.surrender_declared:
@@ -70,7 +70,7 @@ class PvPStrategyAdvisor(Advisor):
       self.last_status = self.manager.time
       print(f"optimism {self.optimism}, supply {self.manager.supply_used}")
 
-    if (self.manager.supply_used > 196 or self.optimism > 2) and not any(
+    if (self.manager.supply_used > 196 or self.optimism > 1.5) and not any(
       isinstance(objective, AttackObjective)
       for objective in self.objectives
     ):
