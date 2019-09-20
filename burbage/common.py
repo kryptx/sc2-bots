@@ -217,7 +217,7 @@ class StrategicObjective():
       if retreating_unit.position.is_further_than(5, self.rendezvous):
         self.retreat_unit(retreating_unit, Point2.center([ self.units.center, self.rendezvous ]))
 
-    local_opt = optimism(self.units.closer_than(10, self.units.center), self.enemies)
+    local_opt = optimism(self.units.closer_than(10, self.units.center), self.enemies) if self.units.exists else 0
     if local_opt > 3:
       print(f"Returning to staging because local optimism is {local_opt}")
       self.status = ObjectiveStatus.STAGING

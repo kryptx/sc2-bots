@@ -153,7 +153,7 @@ maps = [
   "AutomatonLE",
   "BackwaterLE",
   "BattleontheBoardwalkLE",
-  "BelShifVestigeLE",
+  "BelShirVestigeLE",
   "BlackpinkLE",
   "BloodBoilLE",
   "BlueshiftLE",
