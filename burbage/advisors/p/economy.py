@@ -142,7 +142,7 @@ class ProtossEconomyAdvisor(Advisor):
       loc
       for loc in list(self.manager.expansion_locations.keys())
       if loc not in self.manager.owned_expansions.keys()
-        and not self.manager.enemy_structures.closer_than(5, loc).exists
+        and not self.manager.enemy_structures.closer_than(8, loc).exists
     ]
     return min(all_possible_expansions, key=distance_to_home) if all_possible_expansions else None
 

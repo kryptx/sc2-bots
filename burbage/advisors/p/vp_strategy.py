@@ -7,7 +7,7 @@ from sc2.units import Units
 
 from burbage.advisors.advisor import Advisor
 from burbage.common import Urgency, TrainingRequest, WarpInRequest, StructureRequest, ResearchRequest
-from burbage.common import DefenseObjective, AttackObjective, BaseStructures, CombatUnits, list_flatten, optimism
+from burbage.common import DefenseObjective, AttackObjective, BaseStructures, CombatUnits, list_flatten, optimism, retreat
 
 BASE_DEFENSE_RADIUS = 35
 
@@ -32,7 +32,12 @@ class PvPStrategyAdvisor(Advisor):
     if self.surrender_declared and self.manager.time - self.surrender_declared > 5:
       return await self.manager._client.leave()
 
-    self.optimism = optimism(self.manager.units(CombatUnits), self.manager.advisor_data.scouting['enemy_army'].values())
+    self.optimism = optimism(self.manager.units(CombatUnits), (
+      u
+      for u in self.manager.advisor_data.scouting['enemy_army'].values()
+      if u.type_id not in [ UnitTypeId.PROBE, UnitTypeId.DRONE, UnitTypeId.SCV ]
+    ))
+
     if self.optimism < 0.01 and not self.surrender_declared:
       self.surrender_declared = self.manager.time
       await self.manager.chat_send("(gameheart)(gg)(gameheart)")
@@ -42,17 +47,17 @@ class PvPStrategyAdvisor(Advisor):
     requests += await self.audit_research()
     requests += await self.build_gateway_units()
     self.use_excess_chrono_boosts()
-    self.objectives = [ objective for objective in self.objectives if not objective.is_complete() ]
     self.handle_threats()
     self.allocate_units()
-    self.advance_objectives()
+    await self.advance_objectives()
+    self.objectives = [ objective for objective in self.objectives if not objective.is_complete() ]
     # nothing is actually using this
     # self.manager.tagged_units.strategy = set(list_flatten([[ tag for tag in objective.allocated ] for objective in self.objectives ]))
     return requests
 
-  def advance_objectives(self):
+  async def advance_objectives(self):
     for objective in self.objectives:
-      objective.tick()
+      await objective.tick()
 
   def use_excess_chrono_boosts(self):
     full_nexuses = self.manager.townhalls.filter(lambda nex: nex.energy > 190)
@@ -69,7 +74,7 @@ class PvPStrategyAdvisor(Advisor):
   def allocate_units(self):
     if self.manager.time - self.last_status >= 2:
       self.last_status = self.manager.time
-      print(f"optimism {self.optimism}, supply {self.manager.supply_used}")
+      # print(f"optimism {self.optimism}, supply {self.manager.supply_used}, {self.manager.scouting_advisor.enemy_army_size()} known enemy units")
 
     if (self.manager.supply_used > 196 or self.optimism > 1.5) and not any(
       isinstance(objective, AttackObjective)
@@ -89,13 +94,14 @@ class PvPStrategyAdvisor(Advisor):
 
   def handle_threats(self):
     #enemies within 20 units of at least 2 of my structures
-    threatening_enemies = self.manager.enemy_units.filter(lambda enemy: self.manager.structures.closer_than(20, enemy).amount > 1)
+    # or, within 15 of the rally point
+    threatening_enemies = self.manager.enemy_units.filter(lambda enemy:
+      self.manager.structures.closer_than(20, enemy).amount > 1 or
+      enemy.position.is_closer_than(20, self.manager.rally_point)
+    )
+
     if threatening_enemies.exists and not any(isinstance(objective, DefenseObjective) for objective in self.objectives):
       self.objectives.append(DefenseObjective(self.manager))
-
-    vigilantes = self.manager.unallocated().filter(lambda u: u.position.is_further_than(15, self.manager.rally_point))
-    for vigilante in vigilantes:
-      self.manager.do(vigilante.move(self.manager.rally_point))
 
   async def build_gateway_units(self):
     requests = []
@@ -226,7 +232,9 @@ class PvPStrategyAdvisor(Advisor):
     if councils.idle.exists:
       council = councils.idle.first
       tc_abilities = await self.manager.get_available_abilities(council)
-      if AbilityId.RESEARCH_CHARGE in tc_abilities:
+      if AbilityId.RESEARCH_BLINK in tc_abilities:
+        requests.append(ResearchRequest(AbilityId.RESEARCH_BLINK, council, Urgency.HIGH))
+      elif AbilityId.RESEARCH_CHARGE in tc_abilities:
         requests.append(ResearchRequest(AbilityId.RESEARCH_CHARGE, council, Urgency.MEDIUMHIGH))
 
     bays = self.manager.structures(UnitTypeId.ROBOTICSBAY)
@@ -276,13 +284,13 @@ class PvPStrategyAdvisor(Advisor):
 
     # BUILD A COUNCIL
     if not councils.exists and not self.manager.already_pending(UnitTypeId.TWILIGHTCOUNCIL):
-      requests.append(StructureRequest(UnitTypeId.TWILIGHTCOUNCIL, self.manager.planner, Urgency.MEDIUMHIGH))
+      requests.append(StructureRequest(UnitTypeId.TWILIGHTCOUNCIL, self.manager.planner, Urgency.HIGH))
 
     if not councils.ready.exists:
       return requests
 
     # BUILD AN ARCHIVE
     if not archives.exists and not self.manager.already_pending(UnitTypeId.TEMPLARARCHIVE):
-      requests.append(StructureRequest(UnitTypeId.TEMPLARARCHIVE, self.manager.planner, Urgency.MEDIUMHIGH))
+      requests.append(StructureRequest(UnitTypeId.TEMPLARARCHIVE, self.manager.planner, Urgency.HIGH))
 
     return requests

@@ -155,7 +155,7 @@ maps = [
   "BattleontheBoardwalkLE",
   "BelShirVestigeLE",
   "BlackpinkLE",
-  "BloodBoilLE",
+#  "BloodBoilLE", #-- fuck this map
   "BlueshiftLE",
   "CactusValleyLE",
   "CatalystLE",

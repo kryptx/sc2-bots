@@ -1,3 +1,4 @@
+import asyncio
 import random
 
 import sc2
@@ -71,9 +72,7 @@ class ProtossScoutingAdvisor(Advisor):
     self.evaluate_rush_status()       # interpret data from scouts to determine if they are rushing
     self.evaluate_mission_status()    # make sure all the scouts are safe and on track
     self.audit_missions()
-    requests = self.audit_structures()         # we'll demand robotics if other advisors don't
-    requests += self.build_robotics_units()    # observers only
-    requests += await self.build_gateway_units()    # observers only
+    requests = self.audit_structures() + self.build_robotics_units() + await self.build_gateway_units()
     return requests
 
   def audit_structures(self):
@@ -142,7 +141,10 @@ class ProtossScoutingAdvisor(Advisor):
     if mission.unit_type:
       available_units = self.manager.unallocated(mission.unit_type)
       if available_units.exists:
-        mission.unit = available_units.closest_to(mission.targets[0])
+        if mission.unit_type == UnitTypeId.PROBE:
+          available_units = available_units.filter(lambda u: u.is_idle or u.is_collecting)
+        return available_units.closest_to(mission.targets[0])
+
     else:
       observers = self.manager.unallocated(UnitTypeId.OBSERVER)
       adepts = self.manager.unallocated(UnitTypeId.ADEPT)

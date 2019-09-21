@@ -1,3 +1,4 @@
+import asyncio
 import itertools
 import random
 
@@ -127,13 +128,17 @@ def list_flatten(list_of_lists):
   return [item for sublist in list_of_lists for item in sublist]
 
 def optimism(units, enemy_units):
-  return float(dps(units) * max_hp(units) + 2500) / float(dps(enemy_units) * max_hp(enemy_units) + 2500)
+  return (sum(u.ground_dps * (u.health + u.shield) for u in units) + 1000) / (sum(u.ground_dps * (u.health + u.shield) for u in enemy_units) + 1000)
 
 def dps(units):
   return sum(u.ground_dps for u in units)
 
 def max_hp(units):
   return sum(u.health_max + u.shield_max for u in units)
+
+def retreat(unit, target):
+  return unit.attack(target.position) if unit.weapon_cooldown == 0 else unit.move(target.position)
+
 
 class StrategicObjective():
   def __init__(self, manager, urgency, rendezvous=None):
@@ -144,34 +149,32 @@ class StrategicObjective():
     self.urgency = urgency
     self.rendezvous = rendezvous
     self.units = Units([], manager)
-    self.last_seen = 1
+    self.last_seen = manager.time
+    self.enemies = self.find_enemies()
 
   def log(self, msg):
     print(f"{type(self).__name__} {msg}")
 
-  @property
-  def enemies(self):
-    return Units([
-      u
-      for u in self.manager.advisor_data.scouting['enemy_army'].values()
-      if u.type_id not in [ UnitTypeId.PROBE, UnitTypeId.DRONE, UnitTypeId.SCV ]
-    ], self.manager)
+  def find_enemies(self):
+    return Units(self.manager.advisor_data.scouting['enemy_army'].values(), self.manager) \
+      .filter(lambda u: u.type_id not in [ UnitTypeId.PROBE, UnitTypeId.DRONE, UnitTypeId.SCV ])
 
   def abort(self):
     self.status = ObjectiveStatus.RETREATING
     self.status_since = self.manager.time
 
-  def tick(self):
-    if self.manager.enemy_units.tags_in([enemy.tag for enemy in self.enemies]).exists:
+  async def tick(self):
+    self.enemies = self.find_enemies()
+    if self.manager.enemy_units.tags_in(e.tag for e in self.enemies).exists:
       self.last_seen = self.manager.time
     if self.status >= ObjectiveStatus.ALLOCATING:
       self.allocate()
     if self.status == ObjectiveStatus.STAGING:
       self.stage()
     if self.status == ObjectiveStatus.ACTIVE:
-      self.micro()
+      await self.micro()
     if self.status == ObjectiveStatus.RETREATING:
-      self.retreat()
+      await self.retreat()
 
   def retreat_unit(self, unit, target):
     if unit.type_id == UnitTypeId.STALKER and unit.weapon_cooldown == 0:
@@ -179,18 +182,24 @@ class StrategicObjective():
     else:
       self.manager.do(unit.move(target))
 
-  def wanted_units(self):
-    return self.manager.units(CombatUnits).amount - self.units.amount
+  def minimum_units(self, enemy_units):
+    return 0
 
-  def micro(self):
+  def optimum_units(self, enemy_units):
+    return self.manager.units.amount
+
+  def do_attack(self, unit):
+    self.manager.do(unit.attack(self.enemies.closest_to(self.target.position).position if self.enemies.exists else self.target.position))
+
+  async def micro(self):
     if self.units.empty:
       self.log("no units to micro")
       return
 
-    if self.status == ObjectiveStatus.ACTIVE and self.manager.time - self.status_since > 2:
+    if self.manager.time - self.status_since > 2:
       self.status_since = self.manager.time
       for unit in self.units:
-        self.manager.do(unit.attack((self.manager.enemy_units + self.manager.enemy_structures).closest_to(self.target).position))
+        self.do_attack(unit)
 
     cooling_down_units = self.units.filter(lambda u: u.weapon_cooldown > 0)
     if cooling_down_units.amount < self.units.amount / 3:
@@ -205,22 +214,26 @@ class StrategicObjective():
     }), self.manager)
     if nearby_enemies.exists:
       nearby_allies = self.units.closer_than(30, nearby_enemies.center)
-      if nearby_allies.amount > self.units.amount / 4 and self.manager.strategy_advisor.optimism < 2 and optimism(self.units, nearby_enemies) < 0.75:
+      if nearby_allies.amount >= self.units.amount / 3 and self.manager.strategy_advisor.optimism < 1.5 and optimism(nearby_allies, nearby_enemies) < 0.75:
         self.log(f"*****RETREATING***** {nearby_enemies.amount} enemies, {self.units.amount} units ({nearby_allies.amount} nearby)")
         self.status = ObjectiveStatus.RETREATING
         self.status_since = self.manager.time
     return
 
-  def retreat(self):
+  async def retreat(self):
     self.rendezvous = Point2.center([ self.manager.rally_point, self.units.center if self.units.exists else self.manager.game_info.map_center ])
     for retreating_unit in self.units:
       if retreating_unit.position.is_further_than(5, self.rendezvous):
         self.retreat_unit(retreating_unit, Point2.center([ self.units.center, self.rendezvous ]))
 
-    local_opt = optimism(self.units.closer_than(10, self.units.center), self.enemies) if self.units.exists else 0
-    if local_opt > 3:
-      print(f"Returning to staging because local optimism is {local_opt}")
-      self.status = ObjectiveStatus.STAGING
+    if self.units.empty:
+      return
+
+    grouped_fighters = self.units.closer_than(10, self.units.center)
+    local_opt = optimism(grouped_fighters, self.enemies) if grouped_fighters.exists else 0
+    if local_opt > 3 and grouped_fighters.amount >= self.enemies.amount:
+      print(f"Returning to active because local optimism is {local_opt}")
+      self.status = ObjectiveStatus.ACTIVE
       self.status_since = self.manager.time
     elif all(unit.position.is_closer_than(10, self.rendezvous) for unit in self.units):
       self.allocated.clear()
@@ -278,23 +291,27 @@ class StrategicObjective():
         self.manager.do(attacking_unit.move(self.rendezvous))
 
   def allocate(self):
-    fully_allocated = False
+    may_proceed = False
     enemy_units = self.enemies
-    needed_units = min(40, int(enemy_units.amount)) # don't bother unless you can get this number
-    wanted_units = self.wanted_units() # all units for attacks, just a few extra for defense
-    if wanted_units <= 0:
-      fully_allocated = True
-    else:
-      usable_units = self.manager.unallocated(CombatUnits, self.urgency)
-      if usable_units.amount >= needed_units or self.status >= ObjectiveStatus.STAGING:
-        adding_units = set(unit.tag for unit in usable_units.closest_n_units(self.target.position, wanted_units))
-        for objective in self.manager.strategy_advisor.objectives:
-          objective.allocated.difference_update(adding_units)
-        self.allocated = self.allocated.union(adding_units)
-        if len(self.allocated) >= needed_units or self.manager.supply_used >= 196 and len(self.allocated) >= 40:
-          fully_allocated = True
+    minimum_units = self.minimum_units(enemy_units)
+    optimum_units = self.optimum_units(enemy_units)
+    allocated_units = len(self.allocated)
 
-    if fully_allocated:
+    if minimum_units <= allocated_units:
+      may_proceed = True
+
+    still_needed = minimum_units - allocated_units
+    still_wanted = optimum_units - allocated_units
+    usable_units = self.manager.unallocated(CombatUnits, self.urgency)
+    if usable_units.amount >= still_needed:
+      adding_units = set(unit.tag for unit in usable_units.closest_n_units(self.target.position, still_wanted))
+      for objective in self.manager.strategy_advisor.objectives:
+        objective.allocated.difference_update(adding_units)
+      self.allocated = self.allocated.union(adding_units)
+      if len(self.allocated) >= minimum_units:
+        may_proceed = True
+
+    if may_proceed:
       if self.status == ObjectiveStatus.ALLOCATING:
         self.log("approved for staging")
         self.status = ObjectiveStatus.STAGING
@@ -310,6 +327,9 @@ class AttackObjective(StrategicObjective):
     super().__init__(manager, urgency, rendezvous)
     self.target = target
 
+  def minimum_units(self, enemy_units):
+    return min(35, int(enemy_units.amount))
+
   def is_complete(self):
     completed = False
     if self.units.empty:
@@ -323,15 +343,19 @@ class AttackObjective(StrategicObjective):
 
     return completed
 
+  def do_attack(self, unit):
+    self.manager.do(unit.attack((self.manager.enemy_units + self.manager.enemy_structures).closest_to(self.target).position))
+
 class DefenseObjective(StrategicObjective):
   def __init__(self, manager, urgency=Urgency.HIGH, rendezvous=None):
     super().__init__(manager, urgency, rendezvous)
     self.log("creating defense objective")
-    self.last_seen = manager.time
 
   @property
   def target(self):
-    return self.enemies.center if self.enemies.exists else self.manager.townhalls.center
+    return self.enemies.center if self.enemies.exists \
+      else self.manager.townhalls.center if self.manager.townhalls.exists \
+      else self.manager.structures.center
 
   def is_complete(self):
     completed = False
@@ -340,28 +364,21 @@ class DefenseObjective(StrategicObjective):
       self.log("Completed because enemies have all been killed or seen elsewhere")
     elif self.manager.time - self.last_seen > 5:
       completed = True
-      self.log("Completed because no units have been seen in 5 seconds")
+      self.log(f"Completed because no units have been seen in 5 seconds (time {self.manager.time}, last seen {self.last_seen})")
     return completed
 
-  @property
-  def enemies(self):
-    return Units(
-      self.manager.advisor_data.scouting['enemy_army'].values(),
-      self.manager
-    ).filter(lambda enemy:
-      self.manager.structures.closer_than(20, enemy.position).amount > 1
-    )
+  def find_enemies(self):
+    return Units(self.manager.advisor_data.scouting['enemy_army'].values(), self.manager).filter(lambda u:
+        self.manager.structures.closer_than(20, u.position).amount > 1
+        or self.manager.rally_point.is_closer_than(15, u.position))
+
+  def optimum_units(self, enemy_units):
+    return enemy_units.amount * 2
 
   def stage(self):
     self.log("skipping staging because reasons (maybe do something here later, recall or something)")
     self.status = ObjectiveStatus.ACTIVE
     self.status_since = self.manager.time
 
-  def retreat(self):
-    self.micro()
-
-  def wanted_units(self):
-    if self.enemies.amount < 10:
-      return 3 if optimism(self.units, self.enemies) < 3 else 0
-    else:
-      return self.manager.units(CombatUnits).amount - self.units.amount
+  async def retreat(self):
+    await self.micro()
