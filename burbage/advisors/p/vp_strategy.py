@@ -122,7 +122,7 @@ class PvPStrategyAdvisor(Advisor):
       army_priority += 2
 
     # 10 is quite a large number here - tune as low as 1 or lower for more economy at the expense of units
-    army_priority += min(Urgency.VERYHIGH, max(0, math.floor(10 / self.optimism)))
+    army_priority += min(Urgency.VERYHIGH, max(0, math.floor(2 / self.optimism)))
     urgency = Urgency.LOW + army_priority
 
     counts = {

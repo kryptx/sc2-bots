@@ -158,10 +158,11 @@ class StrategicObjective():
   def is_complete(self):
     if self.manager.time - self.last_seen > 5:
       self.log("completed: enemies have not been seen for 5 seconds")
-      # any enemies still in self.enemies should be removed from the enemy army
-      # there probably aren't many but they are clearly interfering with us at this point
-      for enemy_tag in (e.tag for e in self.enemies):
-        self.manager.advisor_data.scouting['enemy_army'].pop(enemy_tag, None)
+      if self.status == ObjectiveStatus.ACTIVE:
+        # any enemies still in self.enemies should be removed from the enemy army
+        # there probably aren't many but they are clearly interfering with us at this point
+        for enemy_tag in (e.tag for e in self.enemies):
+          self.manager.advisor_data.scouting['enemy_army'].pop(enemy_tag, None)
 
       return True
     return False
