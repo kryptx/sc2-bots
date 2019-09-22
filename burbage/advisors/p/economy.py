@@ -227,7 +227,7 @@ class ProtossEconomyAdvisor(Advisor):
       if mineable < 1000:
         nexus_urgency += 1
 
-      requests.append(ExpansionRequest(self.next_base_location, nexus_urgency))
+      requests.append(StructureRequest(UnitTypeId.NEXUS, planner=None, urgency=nexus_urgency, force_target=self.next_base_location))
 
     return requests
 

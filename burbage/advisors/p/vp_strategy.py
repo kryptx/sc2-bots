@@ -138,7 +138,14 @@ class PvPStrategyAdvisor(Advisor):
       UnitTypeId.HIGHTEMPLAR: AbilityId.WARPGATETRAIN_HIGHTEMPLAR
     }
 
+    total_gates = self.manager.structures({ UnitTypeId.WARPGATE, UnitTypeId.GATEWAY }).ready.amount
+    busy_gates = self.manager.structures(UnitTypeId.GATEWAY).ready.filter(lambda g: g.is_active).amount
     for warpgate in self.manager.structures(UnitTypeId.WARPGATE).ready:
+      abilities = await self.manager.get_available_abilities(warpgate)
+      if AbilityId.WARPGATETRAIN_ZEALOT not in abilities:
+        busy_gates += 1
+        continue
+
       unit_priority = [ UnitTypeId.STALKER ]
       if counts[UnitTypeId.ZEALOT] < counts[UnitTypeId.STALKER]:
         unit_priority.insert(0, UnitTypeId.ZEALOT)
@@ -151,13 +158,15 @@ class PvPStrategyAdvisor(Advisor):
       if not desired_unit: # we're done here
         return requests
 
-      abilities = await self.manager.get_available_abilities(warpgate)
-      if AbilityId.WARPGATETRAIN_ZEALOT in abilities:
-        pos = pylon.position.to2.random_on_distance([2, 5])
-        placement = await self.manager.find_placement(warp_id[desired_unit], pos, placement_step=1)
+      pos = pylon.position.to2.random_on_distance([2, 5])
+      placement = await self.manager.find_placement(warp_id[desired_unit], pos, placement_step=1)
 
-        if not placement is None:
-          requests.append(WarpInRequest(desired_unit, warpgate, placement, urgency))
+      if not placement is None:
+        requests.append(WarpInRequest(desired_unit, warpgate, placement, urgency))
+
+    if busy_gates == total_gates and \
+      self.manager.can_afford(UnitTypeId.STALKER) and self.manager.can_afford(UnitTypeId.GATEWAY):
+      requests.append(StructureRequest(UnitTypeId.GATEWAY, self.manager.planner, urgency=urgency))
 
     gateways = self.manager.structures(UnitTypeId.GATEWAY)
 
@@ -277,11 +286,6 @@ class PvPStrategyAdvisor(Advisor):
     and not self.manager.structures(UnitTypeId.FORGE).exists
     and not self.manager.already_pending(UnitTypeId.FORGE)):
       requests.append(StructureRequest(UnitTypeId.FORGE, self.manager.planner, Urgency.MEDIUMLOW))
-
-    numGateways = gateways.amount
-    if not self.manager.already_pending(UnitTypeId.GATEWAY) and \
-      (numGateways < self.manager.townhalls.filter(lambda nex: nex.ideal_harvesters > 2).amount * 2 - 1 or self.manager.minerals > 1000):
-      requests.append(StructureRequest(UnitTypeId.GATEWAY, self.manager.planner, Urgency.MEDIUMHIGH))
 
     cores = self.manager.structures(UnitTypeId.CYBERNETICSCORE).ready
     if not cores.exists:

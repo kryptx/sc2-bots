@@ -128,7 +128,7 @@ def list_flatten(list_of_lists):
   return [item for sublist in list_of_lists for item in sublist]
 
 def optimism(units, enemy_units):
-  return (sum(u.ground_dps * (u.health + u.shield) for u in units) + 250) / (sum(u.ground_dps * (u.health + u.shield) for u in enemy_units) + 250)
+  return (sum(u.ground_dps * (u.health + u.shield) * (2 if u.is_massive else 1) for u in units) + 250) / (sum(u.ground_dps * (u.health + u.shield) * (2 if u.is_massive else 1) for u in enemy_units) + 250)
 
 def dps(units):
   return sum(u.ground_dps for u in units)
@@ -213,7 +213,7 @@ class StrategicObjective():
         self.do_attack(unit)
 
     cooling_down_units = self.units.filter(lambda u: u.weapon_cooldown > 0)
-    if cooling_down_units.amount < self.units.amount / 3:
+    if cooling_down_units.amount < self.units.amount / 4:
       for unit in cooling_down_units:
         self.manager.do(unit.move(unit.position.towards(self.target, 2)))
         self.manager.do(unit.attack(self.target.position, queue=True))
