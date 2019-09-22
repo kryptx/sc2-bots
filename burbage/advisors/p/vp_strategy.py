@@ -4,6 +4,7 @@ import math
 import sc2
 from sc2.constants import *
 from sc2.units import Units
+from sc2.position import Point2
 
 from burbage.advisors.advisor import Advisor
 from burbage.common import Urgency, TrainingRequest, WarpInRequest, StructureRequest, ResearchRequest
@@ -76,14 +77,22 @@ class PvPStrategyAdvisor(Advisor):
       self.last_status = self.manager.time
       # print(f"optimism {self.optimism}, supply {self.manager.supply_used}, {self.manager.scouting_advisor.enemy_army_size()} known enemy units")
 
-    if (self.manager.supply_used > 196 or self.optimism > 1.35) and not any(
+    known_enemy_units = self.manager.advisor_data.scouting['enemy_army'].values()
+
+    if (self.manager.supply_used > 196 or self.optimism > 1) and not any(
       isinstance(objective, AttackObjective)
       for objective in self.objectives
     ):
 
       enemy_bases = self.manager.enemy_structures(BaseStructures)
       if enemy_bases.exists:
-        self.objectives.append(AttackObjective(self.manager, enemy_bases.furthest_to(self.manager.enemy_start_locations[0]).position))
+        self.objectives.append(AttackObjective(
+          self.manager,
+          enemy_bases.furthest_to(
+            Point2.center([ u.position for u in known_enemy_units ]) if known_enemy_units
+            else self.manager.enemy_start_locations[0]
+          ).position
+        ))
       elif self.manager.enemy_structures.exists:
         self.objectives.append(AttackObjective(self.manager, self.manager.enemy_structures.closest_to(self.manager.units.center).position))
       else:
@@ -122,7 +131,7 @@ class PvPStrategyAdvisor(Advisor):
       army_priority += 2
 
     # 10 is quite a large number here - tune as low as 1 or lower for more economy at the expense of units
-    army_priority += min(Urgency.VERYHIGH, max(0, math.floor(2 / self.optimism)))
+    army_priority += min(Urgency.VERYHIGH, max(0, math.floor(1.5 / self.optimism)))
     urgency = Urgency.LOW + army_priority
 
     counts = {
@@ -165,7 +174,8 @@ class PvPStrategyAdvisor(Advisor):
         requests.append(WarpInRequest(desired_unit, warpgate, placement, urgency))
 
     if busy_gates == total_gates and \
-      self.manager.can_afford(UnitTypeId.STALKER) and self.manager.can_afford(UnitTypeId.GATEWAY):
+      self.manager.can_afford(UnitTypeId.STALKER) and self.manager.can_afford(UnitTypeId.GATEWAY) \
+      and self.manager.structures(UnitTypeId.GATEWAY).not_ready.amount < 2:
       requests.append(StructureRequest(UnitTypeId.GATEWAY, self.manager.planner, urgency=urgency))
 
     gateways = self.manager.structures(UnitTypeId.GATEWAY)

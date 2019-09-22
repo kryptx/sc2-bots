@@ -268,9 +268,12 @@ class ProtossScoutingAdvisor(Advisor):
       if danger.exists:
         # evade. If there's more than 2, go to the next target
         # if the 1 chases long enough, give up and try the next
-        target = scout.position.towards(danger.center, -2)
+        if scout.is_flying:
+          target = scout.position.towards(danger.center, -2)
+        else:
+          target = self.manager.rally_point
         if scout.shield < scout.shield_max:
-          if mission.static_targets and mission.retreat_until and mission.retreat_until <= now:
+          if mission.static_targets and mission.retreat_until and now >= mission.retreat_until:
             # they came after the scout while we were waiting for its shield to recharge
             self.next_target(mission)
           # at this point, the timer is only for the purpose of whether to give up on the current target
@@ -290,6 +293,8 @@ class ProtossScoutingAdvisor(Advisor):
 
       if target:
         self.manager.do(scout.move(target))
+      elif mission.retreat_until and now >= mission.retreat_until:
+        self.manager.do(scout.stop())
 
     self.missions = [ m for m in self.missions if not m.complete ]
 
@@ -396,6 +401,6 @@ class ProtossScoutingAdvisor(Advisor):
           requests.append(WarpInRequest(desired_unit, warpgate, placement, Urgency.HIGH))
 
     if numAdepts < 2 and gateways.idle.exists and not self.manager.warpgate_complete:
-      requests.append(TrainingRequest(UnitTypeId.ADEPT, gateways.idle.first, Urgency.HIGH))
+      requests.append(TrainingRequest(UnitTypeId.ADEPT, gateways.idle.first, Urgency.HIGH + 1 - numAdepts))
 
     return requests

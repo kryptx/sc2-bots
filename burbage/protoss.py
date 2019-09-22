@@ -72,7 +72,7 @@ class AdvisorBot(sc2.BotAI):
         sha = repo.head.object.hexsha
         await self.chat_send("AdvisorBot verified hash: " + sha[0:10])
       await self.chat_send("(glhf)(cake)(sc2)")
-    if self.time < 60:
+    if self.time < 120:
       return
     if self.highest_optimism_reported < 10 and self.strategy_advisor.optimism > 10:
       self.highest_optimism_reported = 10

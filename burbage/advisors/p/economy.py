@@ -179,7 +179,7 @@ class ProtossEconomyAdvisor(Advisor):
     vgs = self.get_empty_geysers(assimilators)
     if vgs:
       for vg in vgs:
-        urgency = Urgency.HIGH
+        urgency = Urgency.HIGH if assimilators.exists else Urgency.VERYHIGH
         gates = self.manager.structures({ UnitTypeId.GATEWAY, UnitTypeId.WARPGATE })
         if gates.amount < 2 and assimilators.amount >= gates.amount:
           # keep the number of gateways ahead until there are 2 of each
