@@ -249,10 +249,11 @@ class ProtossScoutingAdvisor(Advisor):
 
       if not (mission.static_targets and mission.targets):
         self.generate_targets(mission)
+      if not mission.targets:
+        continue
 
       scout = self.get_scout(mission)
-
-      if not scout or not mission.targets:
+      if not scout:
         continue
 
       if mission.static_targets and scout.position.is_closer_than(2.0, mission.targets[0]):
