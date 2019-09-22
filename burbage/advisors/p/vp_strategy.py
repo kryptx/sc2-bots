@@ -76,7 +76,7 @@ class PvPStrategyAdvisor(Advisor):
       self.last_status = self.manager.time
       # print(f"optimism {self.optimism}, supply {self.manager.supply_used}, {self.manager.scouting_advisor.enemy_army_size()} known enemy units")
 
-    if (self.manager.supply_used > 196 or self.optimism > 1.5) and not any(
+    if (self.manager.supply_used > 196 or self.optimism > 1.35) and not any(
       isinstance(objective, AttackObjective)
       for objective in self.objectives
     ):
@@ -121,9 +121,8 @@ class PvPStrategyAdvisor(Advisor):
     if self.manager.time < 240 and self.manager.advisor_data.scouting['enemy_is_rushing']:
       army_priority += 2
 
-    # Veryhigh is still only 2 (LOW) away from LIFEORDEATH
-    # use optimism in denominator to increase priority when optimism is low
-    army_priority += min(Urgency.VERYHIGH, max(0, math.floor(1 / self.optimism)))
+    # 10 is quite a large number here - tune as low as 1 or lower for more economy at the expense of units
+    army_priority += min(Urgency.VERYHIGH, max(0, math.floor(10 / self.optimism)))
     urgency = Urgency.LOW + army_priority
 
     counts = {
@@ -133,6 +132,7 @@ class PvPStrategyAdvisor(Advisor):
     }
 
     warp_id = {
+      UnitTypeId.ADEPT: AbilityId.TRAINWARP_ADEPT,
       UnitTypeId.ZEALOT: AbilityId.WARPGATETRAIN_ZEALOT,
       UnitTypeId.STALKER: AbilityId.WARPGATETRAIN_STALKER,
       UnitTypeId.HIGHTEMPLAR: AbilityId.WARPGATETRAIN_HIGHTEMPLAR

@@ -29,14 +29,14 @@ class Race(enum.IntFlag):
 TECH_STRUCTURES = { UnitTypeId.LAIR, UnitTypeId.ROACHWARREN, UnitTypeId.CYBERNETICSCORE, UnitTypeId.FACTORY, UnitTypeId.STARPORT }
 
 class ScoutingMission():
-  def __init__(self, mission_type, targets=[], unit_type=None):
+  def __init__(self, mission_type, targets=[], unit_priority=[ UnitTypeId.OBSERVER, UnitTypeId.ADEPT, UnitTypeId.PROBE ]):
     self.unit = None
     self.targets = targets
-    self.last_retreat = 1 # should be truthy
+    self.retreat_until = 1 # should be truthy
     self.mission = mission_type
     self.last_positions = []
     self.complete = False
-    self.unit_type = unit_type
+    self.unit_priority = unit_priority
     self.static_targets = mission_type in [
       ScoutingMissionType.FIND_BASES,
       ScoutingMissionType.EXPLORE,
@@ -51,6 +51,7 @@ class ProtossScoutingAdvisor(Advisor):
     self.enemy_race = None
     manager.advisor_data.scouting['enemy_army'] = dict()
     manager.advisor_data.scouting['enemy_is_rushing'] = None
+    self.cancel_shades = dict() # adept tag to timestamp
 
   async def on_unit_destroyed(self, unit):
     self.manager.advisor_data.scouting['enemy_army'].pop(unit, None)
@@ -67,13 +68,22 @@ class ProtossScoutingAdvisor(Advisor):
       elif self.manager.enemy_units.exists:
         self.enemy_race = self.manager.enemy_units.random.race
 
+    self.abort_adept_teleports()
     self.update_tagged_scouts()       # might not need this depending on how reliable on_unit_destroyed is
     self.update_enemy_unit_data()     # tracking every enemy unit we've seen
     self.evaluate_rush_status()       # interpret data from scouts to determine if they are rushing
-    self.evaluate_mission_status()    # make sure all the scouts are safe and on track
+    await self.evaluate_mission_status()    # make sure all the scouts are safe and on track
     self.audit_missions()
     requests = self.audit_structures() + self.build_robotics_units() + await self.build_gateway_units()
     return requests
+
+  def abort_adept_teleports(self):
+    to_cancel = [tag for tag in self.cancel_shades.keys() if self.cancel_shades[tag] <= self.manager.time]
+    for adept in self.manager.units.tags_in(to_cancel):
+      self.manager.do(adept(AbilityId.CANCEL_ADEPTPHASESHIFT))
+
+    for tag in to_cancel:
+      self.cancel_shades.pop(tag)
 
   def audit_structures(self):
     requests = []
@@ -105,20 +115,14 @@ class ProtossScoutingAdvisor(Advisor):
     if len([ m for m in self.missions if m.mission == ScoutingMissionType.EXPANSION_HUNT ]) < 1 and rush_scout_complete and self.manager.time > 240:
       self.missions.append(ScoutingMission(ScoutingMissionType.EXPANSION_HUNT))
 
-    if len([ m for m in self.missions if m.mission == ScoutingMissionType.WATCH_ENEMY_ARMY ]) < 1 and rush_scout_complete and self.manager.enemy_structures(BaseStructures).exists:
-      self.missions.append(ScoutingMission(ScoutingMissionType.WATCH_ENEMY_ARMY))
+    if len([ m for m in self.missions if m.mission == ScoutingMissionType.WATCH_ENEMY_ARMY and m.unit_priority[0] == UnitTypeId.ADEPT ]) < 1 and rush_scout_complete and self.manager.enemy_structures(BaseStructures).exists:
+      self.missions.append(ScoutingMission(ScoutingMissionType.WATCH_ENEMY_ARMY, unit_priority=[ UnitTypeId.ADEPT ]))
 
-    if self.manager.units(UnitTypeId.OBSERVER).idle.exists and any(m.unit and m.unit.type_id != UnitTypeId.OBSERVER for m in self.missions):
-      missions = list(self.missions)
-      broken_mission = next(m for m in missions if m.unit.type_id != UnitTypeId.OBSERVER)
-      self.release_scout(broken_mission.unit)
-      broken_mission.unit = None
+    if len([ m for m in self.missions if m.mission == ScoutingMissionType.WATCH_ENEMY_ARMY and m.unit_priority[0] == UnitTypeId.ADEPTPHASESHIFT ]) < 1 and rush_scout_complete and self.manager.enemy_structures(BaseStructures).exists:
+      self.missions.append(ScoutingMission(ScoutingMissionType.WATCH_ENEMY_ARMY, unit_priority=[ UnitTypeId.ADEPTPHASESHIFT ]))
 
-    if self.manager.units(UnitTypeId.ZEALOT).idle.exists and any(m.unit and m.unit.type_id == UnitTypeId.PROBE and m.mission not in early_missions for m in self.missions):
-      missions = list(self.missions)
-      broken_mission = next(m for m in missions if m.unit and m.unit.type_id == UnitTypeId.PROBE and m.mission not in early_missions)
-      self.release_scout(broken_mission.unit)
-      broken_mission.unit = None
+    if len([ m for m in self.missions if m.mission == ScoutingMissionType.WATCH_ENEMY_ARMY and m.unit_priority[0] == UnitTypeId.OBSERVER ]) < 1 and rush_scout_complete and self.manager.enemy_structures(BaseStructures).exists:
+      self.missions.append(ScoutingMission(ScoutingMissionType.WATCH_ENEMY_ARMY, unit_priority=[ UnitTypeId.OBSERVER ]))
 
   def enemy_army_size(self):
     return len(self.manager.advisor_data.scouting['enemy_army'])
@@ -137,25 +141,32 @@ class ProtossScoutingAdvisor(Advisor):
     for unit in self.manager.enemy_units:
       self.manager.advisor_data.scouting['enemy_army'][unit.tag] = unit
 
-  def assign_scout(self, mission):
-    if mission.unit_type:
-      available_units = self.manager.unallocated(mission.unit_type)
-      if available_units.exists:
-        if mission.unit_type == UnitTypeId.PROBE:
-          available_units = available_units.filter(lambda u: u.is_idle or u.is_collecting)
-        return available_units.closest_to(mission.targets[0])
+  def get_scout(self, mission):
+    if mission.unit:
+      scouts = self.manager.units.tags_in([ mission.unit.tag ])
+      if scouts.exists:
+        mission.unit = scouts.first
+      else:
+        mission.unit = None
+
+    if mission.unit and mission.unit.type_id == mission.unit_priority[0]:
+      self.manager.tagged_units.scouting.add(mission.unit.tag)
 
     else:
-      observers = self.manager.unallocated(UnitTypeId.OBSERVER)
-      adepts = self.manager.unallocated(UnitTypeId.ADEPT)
-      probes = self.manager.unallocated(UnitTypeId.PROBE)
+      for unit_type in mission.unit_priority:
+        if mission.unit and mission.unit.type_id == unit_type:
+          # no unit better than the one we got
+          break
+        available_units = self.manager.unallocated(unit_type)
+        if unit_type == UnitTypeId.PROBE:
+          available_units = available_units.filter(lambda probe: probe.is_idle or probe.is_collecting)
+        if available_units.exists:
+          if mission.unit:
+            self.release_scout(mission.unit)
 
-      if observers.exists:
-        mission.unit = observers.closest_to(mission.targets[0])
-      elif adepts.exists:
-        mission.unit = adepts.closest_to(mission.targets[0])
-      elif probes.exists:
-        mission.unit = probes.closest_to(mission.targets[0])
+          mission.unit = available_units.closest_to(mission.targets[0])
+          self.manager.tagged_units.scouting.add(mission.unit.tag)
+          break
 
     return mission.unit
 
@@ -180,8 +191,8 @@ class ProtossScoutingAdvisor(Advisor):
         # one last chance, though.
 
       if enemy_bases.amount > 1 or \
-         enemy_bases.exists and enemy_bases.first.position not in self.manager.enemy_start_locations or \
-         self.manager.enemy_structures(TECH_STRUCTURES).exists:
+        enemy_bases.exists and enemy_bases.first.position not in self.manager.enemy_start_locations or \
+        self.manager.enemy_structures(TECH_STRUCTURES).exists:
         # they expanded or are building at least basic tech.
         known_not_rushing = True
       elif now < 120 and self.enemy_army_dps() > 90:
@@ -197,7 +208,7 @@ class ProtossScoutingAdvisor(Advisor):
             known_rushing = True
         if self.enemy_race == Race.ZERG:
           pool = self.manager.enemy_structures({ UnitTypeId.SPAWNINGPOOL })
-          if pool.exists and enemy_bases.exists:
+          if now > 120 and pool.exists and enemy_bases.amount < 2:
             known_rushing = True
         if self.enemy_race == Race.PROTOSS:
           dangers = self.manager.enemy_structures({ UnitTypeId.PYLON, UnitTypeId.GATEWAY })
@@ -217,7 +228,7 @@ class ProtossScoutingAdvisor(Advisor):
           if mission.mission == ScoutingMissionType.DETECT_CHEESE:
             mission.complete = True
 
-  def evaluate_mission_status(self):
+  async def evaluate_mission_status(self):
     now = self.manager.time
     enemy_bases = self.manager.enemy_structures(BaseStructures)
     for mission in self.missions:
@@ -227,56 +238,54 @@ class ProtossScoutingAdvisor(Advisor):
         mission.unit = None
         continue
 
-      scout = None
-      if mission.unit:
-        scouts = self.manager.units.tags_in([ mission.unit.tag ])
-        if scouts.exists:
-          scout = scouts.first
-
       if mission.mission == ScoutingMissionType.FIND_BASES and enemy_bases.exists:
         # done with that one, aren't we
         mission.mission = ScoutingMissionType.DETECT_CHEESE
         mission.targets.clear()
 
-      if mission.static_targets:
-        if not mission.targets or (scout and scout.position.is_closer_than(2.0, mission.targets[0])):
-          self.next_target(mission)
-      else:
-        self.generate_targets(mission)
-
       if mission.mission == ScoutingMissionType.EXPANSION_HUNT and mission.targets and \
         enemy_bases.exists and enemy_bases.closer_than(1.0, mission.targets[0]).exists:
+        self.next_target(mission)
+
+      if not (mission.static_targets and mission.targets):
+        self.generate_targets(mission)
+
+      scout = self.get_scout(mission)
+
+      if not scout or not mission.targets:
+        continue
+
+      if mission.static_targets and scout.position.is_closer_than(2.0, mission.targets[0]):
         self.next_target(mission)
 
       if mission.complete:
         continue
 
       target = mission.targets[0]
-      if not target:
-        continue
-
-      if not scout:
-        scout = self.assign_scout(mission)
-
-      if not scout:
-        continue
-
-      self.manager.tagged_units.scouting.add(scout.tag)
       danger = self.find_danger(scout, bonus_range=3)
 
       if danger.exists:
         # evade. If there's more than 2, go to the next target
         # if the 1 chases long enough, give up and try the next
         target = scout.position.towards(danger.center, -2)
-        if danger.amount > 2:
-          if mission.last_retreat and now - mission.last_retreat > 2:
+        if scout.shield < scout.shield_max:
+          if mission.static_targets and mission.retreat_until and mission.retreat_until <= now:
+            # they came after the scout while we were waiting for its shield to recharge
             self.next_target(mission)
-          mission.last_retreat = now
+          # at this point, the timer is only for the purpose of whether to give up on the current target
+          mission.retreat_until = now + 2
+
+        if mission.unit.type_id == UnitTypeId.ADEPT:
+          abilities = await self.manager.get_available_abilities(mission.unit)
+          if AbilityId.ADEPTPHASESHIFT_ADEPTPHASESHIFT in abilities:
+            self.manager.do(mission.unit(AbilityId.ADEPTPHASESHIFT_ADEPTPHASESHIFT, mission.unit.position))
+            mission.retreat_until = now + 13
+            self.cancel_shades[mission.unit.tag] = now + 6
       else:
-        if mission.mission == ScoutingMissionType.WATCH_ENEMY_ARMY and mission.last_retreat:
+        if mission.mission == ScoutingMissionType.WATCH_ENEMY_ARMY and mission.retreat_until:
           target = None
-          if now - mission.last_retreat > 10:
-            mission.last_retreat = None
+          if now >= mission.retreat_until and mission.unit.shield == mission.unit.shield_max:
+            mission.retreat_until = None
 
       if target:
         self.manager.do(scout.move(target))
@@ -336,6 +345,10 @@ class ProtossScoutingAdvisor(Advisor):
       mission.complete = True
 
   def find_danger(self, scout, bonus_range=1):
+    if scout.type_id == UnitTypeId.ADEPTPHASESHIFT:
+      # I ain't afraid
+      return Units([], self.manager)
+
     enemies = self.manager.enemy_units + self.manager.enemy_structures
     enemies_that_could_hit_scout = enemies.filter(lambda e: (e.ground_dps > 5 or e.air_dps > 5) and e.target_in_range(scout, bonus_distance=bonus_range))
     return enemies_that_could_hit_scout

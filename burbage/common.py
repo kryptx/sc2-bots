@@ -128,7 +128,7 @@ def list_flatten(list_of_lists):
   return [item for sublist in list_of_lists for item in sublist]
 
 def optimism(units, enemy_units):
-  return (sum(u.ground_dps * (u.health + u.shield) for u in units) + 500) / (sum(u.ground_dps * (u.health + u.shield) for u in enemy_units) + 500)
+  return (sum(u.ground_dps * (u.health + u.shield) for u in units) + 250) / (sum(u.ground_dps * (u.health + u.shield) for u in enemy_units) + 250)
 
 def dps(units):
   return sum(u.ground_dps for u in units)
@@ -197,7 +197,7 @@ class StrategicObjective():
     return 0
 
   def optimum_units(self, enemy_units):
-    return self.manager.units.amount
+    return self.manager.units(CombatUnits).amount
 
   def do_attack(self, unit):
     self.manager.do(unit.attack(self.enemies.closest_to(self.target.position).position if self.enemies.exists else self.target.position))
@@ -339,7 +339,7 @@ class AttackObjective(StrategicObjective):
     self.target = target
 
   def minimum_units(self, enemy_units):
-    return min(35, int(enemy_units.amount))
+    return min(20, int(enemy_units.filter(lambda u: not u.is_structure).amount))
 
   def is_complete(self):
     completed = super().is_complete()
