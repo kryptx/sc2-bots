@@ -279,8 +279,9 @@ class PvPStrategyAdvisor(Advisor):
       requests.append(StructureRequest(UnitTypeId.FORGE, self.manager.planner, Urgency.MEDIUMLOW))
 
     numGateways = gateways.amount
-    if not self.manager.already_pending(UnitTypeId.GATEWAY) and (numGateways < self.manager.townhalls.amount * 2 or self.manager.minerals > 1500):
-      requests.append(StructureRequest(UnitTypeId.GATEWAY, self.manager.planner, Urgency.HIGH))
+    if not self.manager.already_pending(UnitTypeId.GATEWAY) and \
+      (numGateways < self.manager.townhalls.filter(lambda nex: nex.ideal_harvesters > 2).amount * 2 - 1 or self.manager.minerals > 1000):
+      requests.append(StructureRequest(UnitTypeId.GATEWAY, self.manager.planner, Urgency.MEDIUMHIGH))
 
     cores = self.manager.structures(UnitTypeId.CYBERNETICSCORE).ready
     if not cores.exists:
@@ -288,13 +289,13 @@ class PvPStrategyAdvisor(Advisor):
 
     # BUILD A COUNCIL
     if not councils.exists and not self.manager.already_pending(UnitTypeId.TWILIGHTCOUNCIL):
-      requests.append(StructureRequest(UnitTypeId.TWILIGHTCOUNCIL, self.manager.planner, Urgency.HIGH))
+      requests.append(StructureRequest(UnitTypeId.TWILIGHTCOUNCIL, self.manager.planner, Urgency.MEDIUMHIGH))
 
     if not councils.ready.exists:
       return requests
 
     # BUILD AN ARCHIVE
     if not archives.exists and not self.manager.already_pending(UnitTypeId.TEMPLARARCHIVE):
-      requests.append(StructureRequest(UnitTypeId.TEMPLARARCHIVE, self.manager.planner, Urgency.HIGH))
+      requests.append(StructureRequest(UnitTypeId.TEMPLARARCHIVE, self.manager.planner, Urgency.MEDIUMHIGH))
 
     return requests
