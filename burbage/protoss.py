@@ -74,12 +74,12 @@ class AdvisorBot(sc2.BotAI):
       await self.chat_send("(glhf)(cake)(sc2)")
     if self.time < 60:
       return
-    if self.highest_optimism_reported < 5 and self.strategy_advisor.optimism > 5:
-      self.highest_optimism_reported = 5
-      await self.chat_send("I think I got this")
-
     if self.highest_optimism_reported < 10 and self.strategy_advisor.optimism > 10:
       self.highest_optimism_reported = 10
+      await self.chat_send("I think I got this")
+
+    if self.highest_optimism_reported < 50 and self.strategy_advisor.optimism > 50:
+      self.highest_optimism_reported = 50
       await self.chat_send("(flex) Advisors did it again folks (flex)")
 
     enemy_fighters = self.enemy_units.filter(lambda u: u.type_id not in (UnitTypeId.PROBE, UnitTypeId.DRONE, UnitTypeId.SCV))

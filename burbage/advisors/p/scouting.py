@@ -320,8 +320,8 @@ class ProtossScoutingAdvisor(Advisor):
         if mission.unit:
           scout = mission.unit
           towards_danger = known_enemy_units.center - scout.position
-          to_the_right = Point2([ towards_danger.y, -towards_danger.x ])
-          mission.targets = [ (known_enemy_units.center).towards(known_enemy_units.center + to_the_right, 2) ]
+          to_the_side = Point2([ towards_danger.y, -towards_danger.x ]) if int(self.manager.time / 30) % 2 == 0 else Point2([ -towards_danger.y, towards_danger.x ])
+          mission.targets = [ (known_enemy_units.center).towards(known_enemy_units.center + to_the_side, 4) ]
         else:
           mission.targets = [ known_enemy_units.center ]
       else:

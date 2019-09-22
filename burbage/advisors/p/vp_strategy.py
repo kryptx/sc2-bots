@@ -108,7 +108,11 @@ class PvPStrategyAdvisor(Advisor):
     if self.manager.structures({ UnitTypeId.GATEWAY, UnitTypeId.WARPGATE }).empty:
       return requests
 
-    pylon = self.manager.structures(UnitTypeId.PYLON).ready.closest_to(self.manager.game_info.map_center)
+    pylons = self.manager.structures(UnitTypeId.PYLON).ready
+    if pylons.empty:
+      return
+
+    pylon = pylons.closest_to(self.manager.game_info.map_center)
     zealots = self.manager.units(UnitTypeId.ZEALOT)
     stalkers = self.manager.units(UnitTypeId.STALKER)
     archons = self.manager.units(UnitTypeId.ARCHON)

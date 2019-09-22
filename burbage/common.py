@@ -128,7 +128,7 @@ def list_flatten(list_of_lists):
   return [item for sublist in list_of_lists for item in sublist]
 
 def optimism(units, enemy_units):
-  return (sum(u.ground_dps * (u.health + u.shield) for u in units) + 1000) / (sum(u.ground_dps * (u.health + u.shield) for u in enemy_units) + 1000)
+  return (sum(u.ground_dps * (u.health + u.shield) for u in units) + 500) / (sum(u.ground_dps * (u.health + u.shield) for u in enemy_units) + 500)
 
 def dps(units):
   return sum(u.ground_dps for u in units)
@@ -155,9 +155,20 @@ class StrategicObjective():
   def log(self, msg):
     print(f"{type(self).__name__} {msg}")
 
+  def is_complete(self):
+    if self.manager.time - self.last_seen > 5:
+      self.log("completed: enemies have not been seen for 5 seconds")
+      # any enemies still in self.enemies should be removed from the enemy army
+      # there probably aren't many but they are clearly interfering with us at this point
+      for enemy_tag in (e.tag for e in self.enemies):
+        self.manager.advisor_data.scouting['enemy_army'].pop(enemy_tag, None)
+
+      return True
+    return False
+
   def find_enemies(self):
-    return Units(self.manager.advisor_data.scouting['enemy_army'].values(), self.manager) \
-      .filter(lambda u: u.type_id not in [ UnitTypeId.PROBE, UnitTypeId.DRONE, UnitTypeId.SCV ])
+    return (Units(self.manager.advisor_data.scouting['enemy_army'].values(), self.manager) + self.manager.enemy_structures) \
+      .filter(lambda u: u.is_visible or not self.manager.is_visible(u.position))
 
   def abort(self):
     self.status = ObjectiveStatus.RETREATING
@@ -331,15 +342,22 @@ class AttackObjective(StrategicObjective):
     return min(35, int(enemy_units.amount))
 
   def is_complete(self):
-    completed = False
-    if self.units.empty:
+    completed = super().is_complete()
+    if completed:
+      return completed
+    elif self.units.empty:
       completed = True
-    elif self.status == ObjectiveStatus.RETREATING and all(unit.position.is_closer_than(10, self.rendezvous) for unit in self.units):
+      # noisy, and probably not all that useful
+      # it'll create an attack objective every frame if optimism is high enough and units are allocated to defense
+      # They naturally get cancelled because they can't allocate sufficient units
+      # Possibly in the future, enemies for attack objectives should exclude those in defense objectives
+      # self.log("completed (cancelled): no units allocated")
+    elif self.status == ObjectiveStatus.RETREATING and all(unit.position.is_closer_than(15, self.rendezvous) for unit in self.units):
       completed = True
-      self.log("completed because we finished retreating")
+      self.log("completed: we finished retreating")
     elif (self.manager.enemy_structures + self.manager.enemy_units).closer_than(10, self.target.position).empty:
       completed = True
-      self.log("completed because target location has been successfully cleared")
+      self.log("completed: target location has been successfully cleared")
 
     return completed
 
@@ -358,19 +376,20 @@ class DefenseObjective(StrategicObjective):
       else self.manager.structures.center
 
   def is_complete(self):
-    completed = False
-    if self.enemies.empty:
+    completed = super().is_complete()
+    if completed:
+      return completed
+    elif self.enemies.empty:
       completed = True
-      self.log("Completed because enemies have all been killed or seen elsewhere")
-    elif self.manager.time - self.last_seen > 5:
-      completed = True
-      self.log(f"Completed because no units have been seen in 5 seconds (time {self.manager.time}, last seen {self.last_seen})")
+      self.log("completed: enemies have all been killed or gone")
+
     return completed
 
   def find_enemies(self):
     return Units(self.manager.advisor_data.scouting['enemy_army'].values(), self.manager).filter(lambda u:
-        self.manager.structures.closer_than(20, u.position).amount > 1
+        (self.manager.structures.closer_than(20, u.position).amount > 1
         or self.manager.rally_point.is_closer_than(15, u.position))
+    )
 
   def optimum_units(self, enemy_units):
     return enemy_units.amount * 2
