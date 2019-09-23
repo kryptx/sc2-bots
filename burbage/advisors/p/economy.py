@@ -201,7 +201,8 @@ class ProtossEconomyAdvisor(Advisor):
       for unit in self.manager.units({ UnitTypeId.ZEALOT, UnitTypeId.STALKER, UnitTypeId.ARCHON }).idle:
         self.manager.do(unit.attack(destructables.first))
     for unit in self.manager.units.closer_than(5, self.next_base_location):
-      if unit.is_idle:
+      # apparently, when a probe warps in a building, they become idle before the building has started warping
+      if unit.is_idle and unit.type_id != UnitTypeId.PROBE:
         self.manager.do(unit.move(self.next_base_location.towards(self.manager.game_info.map_center, 10)))
     nexus_urgency = Urgency.NONE
     mineable = self.sum_mineral_contents(nodes)

@@ -130,8 +130,8 @@ class PvPStrategyAdvisor(Advisor):
     if self.manager.time < 240 and self.manager.advisor_data.scouting['enemy_is_rushing']:
       army_priority += 2
 
-    # 10 is quite a large number here - tune as low as 1 or lower for more economy at the expense of units
-    army_priority += min(Urgency.VERYHIGH, max(0, math.floor(1.5 / self.optimism)))
+    # adjust "2" from 1 to 5 or so
+    army_priority += min(Urgency.VERYHIGH, max(0, math.floor(2 / self.optimism)))
     urgency = Urgency.LOW + army_priority
 
     counts = {
