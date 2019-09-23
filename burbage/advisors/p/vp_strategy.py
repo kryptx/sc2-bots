@@ -174,8 +174,8 @@ class PvPStrategyAdvisor(Advisor):
         requests.append(WarpInRequest(desired_unit, warpgate, placement, urgency))
 
     if busy_gates == total_gates and \
-      self.manager.can_afford(UnitTypeId.STALKER) and self.manager.can_afford(UnitTypeId.GATEWAY) \
-      and self.manager.structures(UnitTypeId.GATEWAY).not_ready.amount < 2:
+      self.manager.can_afford(UnitTypeId.HIGHTEMPLAR) and self.manager.can_afford(UnitTypeId.GATEWAY) \
+      and self.manager.already_pending(UnitTypeId.GATEWAY) + self.manager.already_pending(UnitTypeId.WARPGATE) < 2:
       requests.append(StructureRequest(UnitTypeId.GATEWAY, self.manager.planner, urgency=urgency))
 
     gateways = self.manager.structures(UnitTypeId.GATEWAY)
