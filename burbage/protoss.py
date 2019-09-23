@@ -104,18 +104,44 @@ class AdvisorBot(sc2.BotAI):
       requests.extend(advisorResult)
 
     requests.sort(key=urgencyValue, reverse=True)
-    fulfill_threshold = None
+    mineral_threshold = None
+    vespene_threshold = None
+    supply_threshold = None
     while requests:
-      if fulfill_threshold and requests[0].urgency < fulfill_threshold:
+      request = requests.pop(0)
+      if not request.urgency:
         break
 
-      request = requests.pop(0)
-      if request.urgency and self.can_afford(request.expense):
+      cost = self.calculate_cost(request.expense)
+      supply_cost = self.calculate_supply_cost(request.expense) if isinstance(request.expense, UnitTypeId) else 0
+      thresholds = ( mineral_threshold, vespene_threshold, supply_threshold )
+      lowest_threshold = min(thresholds) if all(t != None for t in thresholds) else Urgency.NONE
+      if request.urgency < lowest_threshold:
+        break
+      if cost.minerals and mineral_threshold and request.urgency < mineral_threshold:
+        continue
+      if cost.vespene and vespene_threshold and request.urgency < vespene_threshold:
+        continue
+      if supply_cost and supply_threshold and request.urgency < supply_threshold:
+        continue
+
+      can_afford = True
+      if cost.minerals > self.minerals:
+        can_afford = False
+        mineral_threshold = request.urgency
+
+      if cost.vespene > self.vespene:
+        can_afford = False
+        vespene_threshold = request.urgency
+
+      if supply_cost > self.supply_left:
+        can_afford = False
+        supply_threshold = request.urgency
+
+      if can_afford:
         action = await request.fulfill(self)
         if action:
           self.do(action)
-      else:
-        fulfill_threshold = request.urgency
 
   async def on_upgrade_complete(self, upgrade):
     if upgrade == UpgradeId.WARPGATERESEARCH:
