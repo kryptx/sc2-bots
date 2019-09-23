@@ -26,16 +26,24 @@ pylon_positions = [
   # YELLOW
   [ Point2([ 5, 4 ]),
     Point2([ 2, 7 ]), ],
-  # GREEN
+  # CORAL BLUE
   [ Point2([ 9, 1 ]),
     Point2([ 11, 1 ]) ],
   # AQUA
   [ Point2([ 2, 9 ]),
     Point2([ 2, 11 ]) ],
   # BLUE
-  [ Point2([ 9, 11 ]),
-    Point2([ 12, 8 ])
-  ]
+  [ Point2([ 12, 10 ]),
+    Point2([ 12, 8 ]) ],
+  # PINK
+  [ Point2([ 12, 10 ]),
+    Point2([ 12, 12 ]) ],
+  # ORANGE
+  [ Point2([ 2, 15 ]),
+    Point2([ 5, 17 ]) ],
+  # UGLY GREEN
+  [ Point2([ 15, 1 ]),
+    Point2([ 17, 4 ])]
 ]
 
 # STRUCTURE POSITIONS ARE CENTERED
@@ -46,12 +54,22 @@ structure_positions = [
   # YELLOW
   [ Point2([ 3, 5 ]),
     Point2([ 5, 8 ]) ],
-  # GREEN
+  # CORAL BLUE
   [ Point2([ 11, 4 ]) ],
   # AQUA
   [ Point2([ 5, 11 ]) ],
   # BLUE
-  [ Point2([ 10, 9 ]) ],
+  [ Point2([ 10, 9 ]),
+    Point2([ 10, 12 ]) ],
+  # PINK
+  [ Point2([ 15, 12 ]),
+    Point2([ 15, 9 ]) ],
+  # ORANGE
+  [ Point2([ 3, 18 ]),
+    Point2([ 5, 13 ]) ],
+  # UGLY GREEN
+  [ Point2([ 15, 4 ]),
+    Point2([ 18, 2 ]) ]
 ]
 
 def identity(point, size=2):
@@ -79,25 +97,25 @@ class ProtossBasePlanner(BasePlanner):
     super().__init__(manager)
     return
 
-  def can_place_pylon(self, location):
+  def can_place_pylon(self, location, desired_height):
     resources = [ g.position for g in (self.manager.vespene_geyser + self.manager.mineral_field) ]
     ramps = self.manager.game_info.map_ramps
-    return all(self.manager.in_placement_grid(pos) and all(r.is_further_than(1.0, pos) for r in resources) and all(all(point.is_further_than(1.0, pos) for point in r.points) for r in ramps) for pos in [ offset + location for offset in _2X2_OFFSETS ])
+    return all(self.manager.in_placement_grid(pos) and abs(self.manager.get_terrain_height(pos) - desired_height) < 0.5 and all(r.is_further_than(1.0, pos) for r in resources) and all(all(point.is_further_than(1.0, pos) for point in r.points) for r in ramps) for pos in [ offset + location for offset in _2X2_OFFSETS ])
 
-  def can_place_structure(self, location):
+  def can_place_structure(self, location, desired_height):
     resources = [ g.position for g in (self.manager.vespene_geyser + self.manager.mineral_field) ]
     ramps = self.manager.game_info.map_ramps
-    return all(self.manager.in_placement_grid(pos) and all(r.is_further_than(1.0, pos) for r in resources) and all(all(point.is_further_than(1.0, pos) for point in r.points) for r in ramps) for pos in [ offset + location for offset in _3X3_OFFSETS ])
+    return all(self.manager.in_placement_grid(pos) and abs(self.manager.get_terrain_height(pos) - desired_height) < 0.5 and all(r.is_further_than(1.0, pos) for r in resources) and all(all(point.is_further_than(1.0, pos) for point in r.points) for r in ramps) for pos in [ offset + location for offset in _3X3_OFFSETS ])
 
   def initialize_plans(self, base):
     print("Creating building plan for base")
 
     plan = ProtossBasePlan()
-
+    base_terrain_height = self.manager.get_terrain_height(base.position)
     for mutate in mutators:
       for i in range(len(pylon_positions)):
-        if all(self.can_place_pylon(mutate(pos) + base.position) for pos in pylon_positions[i]) and \
-           all(self.can_place_structure(mutate(pos, 3) + base.position) for pos in structure_positions[i]):
+        if all(self.can_place_pylon(mutate(pos) + base.position, base_terrain_height) for pos in pylon_positions[i]) and \
+           all(self.can_place_structure(mutate(pos, 3) + base.position, base_terrain_height) for pos in structure_positions[i]):
           plan.pylon_positions += [ mutate(pos) + base.position for pos in pylon_positions[i]]
           plan.structure_positions += [ mutate(pos, 3) + base.position for pos in structure_positions[i]]
 
