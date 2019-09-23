@@ -116,7 +116,7 @@ class ProtossScoutingAdvisor(Advisor):
       self.missions.append(ScoutingMission(ScoutingMissionType.EXPANSION_HUNT))
 
     if len([ m for m in self.missions if m.mission == ScoutingMissionType.WATCH_ENEMY_ARMY and m.unit_priority[0] == UnitTypeId.ADEPT ]) < 1 and rush_scout_complete and self.manager.enemy_structures(BaseStructures).exists:
-      self.missions.append(ScoutingMission(ScoutingMissionType.WATCH_ENEMY_ARMY, unit_priority=[ UnitTypeId.ADEPT ]))
+      self.missions.append(ScoutingMission(ScoutingMissionType.WATCH_ENEMY_ARMY, unit_priority=[ UnitTypeId.ADEPT, UnitTypeId.PROBE ]))
 
     if len([ m for m in self.missions if m.mission == ScoutingMissionType.WATCH_ENEMY_ARMY and m.unit_priority[0] == UnitTypeId.ADEPTPHASESHIFT ]) < 1 and rush_scout_complete and self.manager.enemy_structures(BaseStructures).exists:
       self.missions.append(ScoutingMission(ScoutingMissionType.WATCH_ENEMY_ARMY, unit_priority=[ UnitTypeId.ADEPTPHASESHIFT ]))
