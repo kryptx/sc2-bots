@@ -22,13 +22,13 @@ _3X3_OFFSETS = _2X2_OFFSETS + [
 pylon_positions = [
   # RED
   [ Point2([ 5, 4 ]),
-    Point2([ 8, 1 ]), ],
+    Point2([ 7, 1 ]), ],
   # YELLOW
   [ Point2([ 5, 4 ]),
     Point2([ 2, 7 ]), ],
   # GREEN
-  [ Point2([ 10, 1 ]),
-    Point2([ 12, 1 ]) ],
+  [ Point2([ 9, 1 ]),
+    Point2([ 11, 1 ]) ],
   # AQUA
   [ Point2([ 2, 9 ]),
     Point2([ 2, 11 ]) ],
@@ -41,13 +41,13 @@ pylon_positions = [
 # STRUCTURE POSITIONS ARE CENTERED
 structure_positions = [
   # RED
-  [ Point2([ 6, 2 ]),
-    Point2([ 9, 4 ]) ],
+  [ Point2([ 5, 2 ]),
+    Point2([ 8, 4 ]) ],
   # YELLOW
   [ Point2([ 3, 5 ]),
     Point2([ 5, 8 ]) ],
   # GREEN
-  [ Point2([ 12, 4 ]) ],
+  [ Point2([ 11, 4 ]) ],
   # AQUA
   [ Point2([ 5, 11 ]) ],
   # BLUE
@@ -56,14 +56,17 @@ structure_positions = [
 
 def identity(point, size=2):
   return point
-def flip_x(point, size=2):
-  return Point2([ -point.x + size - 3, point.y ])
-def flip_y(point, size=2):
-  return Point2([ point.x, -point.y + size - 3 ])
+def rotate_right(point, size=2):
+  remainder = size % 2
+  return Point2([ point.y, -point.x - remainder ])
+def rotate_left(point, size=2):
+  remainder = size % 2
+  return Point2([ -point.y - remainder, point.x ])
 def flip_both(point, size=2):
-  return Point2([ -point.x + size - 3, -point.y + size - 3 ])
+  remainder = size % 2
+  return Point2([ -point.x - remainder, -point.y - remainder ])
 
-mutators = [ identity, flip_x, flip_y, flip_both ]
+mutators = [ identity, rotate_left, rotate_right, flip_both ]
 god_pylons = [ mutate(Point2([ 5, 4 ])) for mutate in mutators ]
 
 class ProtossBasePlan():
@@ -78,11 +81,13 @@ class ProtossBasePlanner(BasePlanner):
 
   def can_place_pylon(self, location):
     resources = [ g.position for g in (self.manager.vespene_geyser + self.manager.mineral_field) ]
-    return all(self.manager.in_placement_grid(pos) and all(r.is_further_than(1.0, pos) for r in resources) for pos in [ offset + location for offset in _2X2_OFFSETS ])
+    ramps = self.manager.game_info.map_ramps
+    return all(self.manager.in_placement_grid(pos) and all(r.is_further_than(1.0, pos) for r in resources) and all(all(point.is_further_than(1.0, pos) for point in r.points) for r in ramps) for pos in [ offset + location for offset in _2X2_OFFSETS ])
 
   def can_place_structure(self, location):
     resources = [ g.position for g in (self.manager.vespene_geyser + self.manager.mineral_field) ]
-    return all(self.manager.in_placement_grid(pos) and all(r.is_further_than(1.0, pos) for r in resources) for pos in [ offset + location for offset in _3X3_OFFSETS ])
+    ramps = self.manager.game_info.map_ramps
+    return all(self.manager.in_placement_grid(pos) and all(r.is_further_than(1.0, pos) for r in resources) and all(all(point.is_further_than(1.0, pos) for point in r.points) for r in ramps) for pos in [ offset + location for offset in _3X3_OFFSETS ])
 
   def initialize_plans(self, base):
     print("Creating building plan for base")
