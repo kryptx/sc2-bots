@@ -18,32 +18,31 @@ _3X3_OFFSETS = _2X2_OFFSETS + [
   Point2([-1, 0])
 ]
 
-# PYLON POSITIONS ARE BOTTOM LEFT CORNER
 pylon_positions = [
   # RED
-  [ Point2([ 5, 4 ]),
-    Point2([ 7, 1 ]), ],
+  [ Point2([ 5.5, 4.5 ]),
+    Point2([ 7.5, 1.5 ]), ],
   # YELLOW
-  [ Point2([ 5, 4 ]),
-    Point2([ 2, 7 ]), ],
+  [ Point2([ 5.5, 4.5 ]),
+    Point2([ 2.5, 7.5 ]), ],
   # CORAL BLUE
-  [ Point2([ 9, 1 ]),
-    Point2([ 11, 1 ]) ],
+  [ Point2([ 9.5, 1.5 ]),
+    Point2([ 11.5, 1.5 ]) ],
   # AQUA
-  [ Point2([ 2, 9 ]),
-    Point2([ 2, 11 ]) ],
+  [ Point2([ 2.5, 9.5 ]),
+    Point2([ 2.5, 11.5 ]) ],
   # BLUE
-  [ Point2([ 12, 10 ]),
-    Point2([ 12, 8 ]) ],
+  [ Point2([ 12.5, 10.5 ]),
+    Point2([ 12.5, 8.5 ]) ],
   # PINK
-  [ Point2([ 12, 10 ]),
-    Point2([ 12, 12 ]) ],
+  [ Point2([ 12.5, 10.5 ]),
+    Point2([ 12.5, 12.5 ]) ],
   # ORANGE
-  [ Point2([ 2, 15 ]),
-    Point2([ 5, 17 ]) ],
+  [ Point2([ 2.5, 15.5 ]),
+    Point2([ 5.5, 17.5 ]) ],
   # UGLY GREEN
-  [ Point2([ 15, 1 ]),
-    Point2([ 17, 4 ])]
+  [ Point2([ 15.5, 1.5 ]),
+    Point2([ 17.5, 4.5 ])]
 ]
 
 # STRUCTURE POSITIONS ARE CENTERED
@@ -66,7 +65,7 @@ structure_positions = [
     Point2([ 15, 9 ]) ],
   # ORANGE
   [ Point2([ 3, 18 ]),
-    Point2([ 5, 13 ]) ],
+    Point2([ 5, 15 ]) ],
   # UGLY GREEN
   [ Point2([ 15, 4 ]),
     Point2([ 18, 2 ]) ]
@@ -75,17 +74,14 @@ structure_positions = [
 def identity(point, size=2):
   return point
 def rotate_right(point, size=2):
-  remainder = size % 2
-  return Point2([ point.y, -point.x - remainder ])
+  return Point2([ point.y, -point.x ])
 def rotate_left(point, size=2):
-  remainder = size % 2
-  return Point2([ -point.y - remainder, point.x ])
+  return Point2([ -point.y, point.x ])
 def flip_both(point, size=2):
-  remainder = size % 2
-  return Point2([ -point.x - remainder, -point.y - remainder ])
+  return Point2([ -point.x, -point.y ])
 
 mutators = [ identity, rotate_left, rotate_right, flip_both ]
-god_pylons = [ mutate(Point2([ 5, 4 ])) for mutate in mutators ]
+god_pylons = [ mutate(Point2([ 5.5, 4.5 ])) for mutate in mutators ]
 
 class ProtossBasePlan():
   def __init__(self):
@@ -121,7 +117,7 @@ class ProtossBasePlanner(BasePlanner):
 
     return plan
 
-  def get_available_positions(self, structure_type):
+  def get_available_positions(self, structure_type, near=None):
     for nex_tag in list(self.plans.keys()):
       if nex_tag not in [ nex.tag for nex in self.manager.townhalls ]:
         del self.plans[nex_tag]
@@ -131,7 +127,7 @@ class ProtossBasePlanner(BasePlanner):
     if structure_type == UnitTypeId.PYLON:
       return self._get_pylon_positions()
     else:
-      return self._get_non_pylon_positions()
+      return self._get_non_pylon_positions(near)
 
   def _get_pylon_positions(self):
     base_locations = [ nex.position for nex in self.manager.townhalls ]
@@ -139,12 +135,12 @@ class ProtossBasePlanner(BasePlanner):
     acceptable_positions = [ p for p in list_flatten([ p.pylon_positions for p in self.plans.values() ]) if p not in existing_pylons ]
 
     random.shuffle(acceptable_positions)
-    # Move god pylons to the front - minimizes POOR PLANNING issues
+    # Move god pylons to the front - minimizes POOR PLANNING issues, and gives all bases pylons
     for i in range(len(acceptable_positions)):
       if any(acceptable_positions[i] - base_location in god_pylons for base_location in base_locations):
         acceptable_positions.insert(0, acceptable_positions.pop(i))
     return [p for p in acceptable_positions if not self.manager.structures.closer_than(1.0, p).exists]
 
-  def _get_non_pylon_positions(self):
-    acceptable_positions = list_flatten([ p.structure_positions for p in self.plans.values() ])
+  def _get_non_pylon_positions(self, near):
+    acceptable_positions = self.plans[near.tag].structure_positions if near else list_flatten([ p.structure_positions for p in self.plans.values() ])
     return [ p for p in acceptable_positions if self.manager.state.psionic_matrix.covers(p) and not self.manager.structures.closer_than(1.0, p).exists ]

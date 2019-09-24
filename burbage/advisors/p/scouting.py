@@ -334,13 +334,23 @@ class ProtossScoutingAdvisor(Advisor):
       known_enemy_units = Units(self.manager.advisor_data.scouting['enemy_army'].values(), self.manager).filter(is_combat_unit)
 
       if known_enemy_units.exists:
+        enemies_center = known_enemy_units.center
         if mission.unit:
           scout = mission.unit
-          towards_danger = known_enemy_units.center - scout.position
-          to_the_side = Point2([ towards_danger.y, -towards_danger.x ]) if int(self.manager.time / 30) % 2 == 0 else Point2([ -towards_danger.y, towards_danger.x ])
-          mission.targets = [ (known_enemy_units.center).towards(known_enemy_units.center + to_the_side, 4) ]
+          if scout.position.distance_to(enemies_center) < 5 and self.manager.enemy_units.closer_than(10, scout.position).empty:
+            # we got some bad intel, boys
+            enemy_bases = self.manager.enemy_structures(BaseStructures)
+            if enemy_bases.exists:
+              mission.targets = [ enemy_bases.furthest_to(scout.position) ]
+            else:
+              # look man, I just wanna find some bad guys to spy on, why all the hassle
+              mission.targets = [ pos for pos in self.manager.enemy_start_locations if self.manager.state.visibility[Point2([ int(pos.x), int(pos.y) ])] == 0 ]
+          else:
+            towards_danger = enemies_center - scout.position
+            to_the_side = Point2([ towards_danger.y, -towards_danger.x ]) if int(self.manager.time / 30) % 2 == 0 else Point2([ -towards_danger.y, towards_danger.x ])
+            mission.targets = [ enemies_center.towards(enemies_center + to_the_side, 4) ]
         else:
-          mission.targets = [ known_enemy_units.center ]
+          mission.targets = [ enemies_center ]
       else:
         mission.targets = [ b.position for b in self.manager.enemy_structures ]
 

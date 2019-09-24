@@ -74,12 +74,13 @@ class BasePlanner():
     raise NotImplementedError("You must override this function")
 
 class StructureRequest():
-  def __init__(self, structure_type, planner, urgency=Urgency.LOW, force_target=None):
+  def __init__(self, structure_type, planner, urgency=Urgency.LOW, force_target=None, near=None):
     self.planner = planner
     self.structure_type = structure_type
     self.urgency = urgency
     self.expense = structure_type
     self.force_target = force_target
+    self.near = near
 
   async def fulfill(self, bot):
     # print(f"fulfilling StructureRequest for {self.expense}, urgency {self.urgency}")
@@ -94,7 +95,7 @@ class StructureRequest():
     if self.force_target:
       return worker.closest_to(self.force_target).build(self.structure_type, self.force_target)
 
-    targets = self.planner.get_available_positions(self.structure_type)
+    targets = self.planner.get_available_positions(self.structure_type, near=self.near)
     for location in targets:
       can_build = await bot.can_place(self.structure_type, location)
       if can_build:

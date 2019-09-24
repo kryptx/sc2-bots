@@ -66,6 +66,13 @@ class AdvisorBot(sc2.BotAI):
       self.scouting_advisor
     ]
 
+##
+# File "burbage/protoss.py", line 69
+#   async def chit_chat(self):
+#           ^
+# SyntaxError: invalid syntax
+# $ source botenv/bin/activate
+# ✔️
   async def chit_chat(self):
     if not self.version_reported:
       self.version_reported = True
@@ -227,7 +234,7 @@ maps = [
 def main():
   sc2.run_game(sc2.maps.get(random.choice(maps)), [
     Bot(Race.Protoss, AdvisorBot()),
-    Computer(Race.Protoss, Difficulty.VeryHard, AIBuild.Rush) # Macro, Power, Rush, Timing, Air, (RandomBuild)
+    Computer(Race.Protoss, Difficulty.VeryHard, AIBuild.RandomBuild) # Macro, Power, Rush, Timing, Air, (RandomBuild)
   ], realtime=False)
 
 if __name__ == '__main__':
