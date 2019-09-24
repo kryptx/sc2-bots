@@ -254,7 +254,7 @@ class StrategicObjective():
   def stage(self):
     allocated_units = self.units
 
-    if allocated_units.amount > self.enemies.amount * 6:
+    if allocated_units.amount > self.enemies.filter(lambda e: not e.is_structure).amount * 5:
       for attacking_unit in allocated_units:
         self.manager.do(attacking_unit.attack(self.target.position))
       self.log("Upgrading to active due to apparent overwhelming advantage")
@@ -341,7 +341,7 @@ class AttackObjective(StrategicObjective):
     self.target = target
 
   def minimum_units(self, enemy_units):
-    return min(20, int(enemy_units.filter(lambda u: not u.is_structure).amount))
+    return min(20, int(enemy_units.filter(lambda u: not u.is_structure).amount / 2))
 
   def is_complete(self):
     completed = super().is_complete()

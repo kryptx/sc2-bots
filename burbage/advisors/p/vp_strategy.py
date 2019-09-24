@@ -79,7 +79,7 @@ class PvPStrategyAdvisor(Advisor):
 
     known_enemy_units = self.manager.advisor_data.scouting['enemy_army'].values()
 
-    if (self.manager.supply_used > 196 or self.optimism > 1) and not any(
+    if (self.manager.supply_used > 196 or self.optimism > 1.2) and not any(
       isinstance(objective, AttackObjective)
       for objective in self.objectives
     ):
@@ -156,7 +156,7 @@ class PvPStrategyAdvisor(Advisor):
         continue
 
       unit_priority = [ UnitTypeId.STALKER ]
-      if counts[UnitTypeId.ZEALOT] < counts[UnitTypeId.STALKER]:
+      if counts[UnitTypeId.ZEALOT] < counts[UnitTypeId.STALKER] or self.manager.structures(UnitTypeId.CYBERNETICSCORE).ready.empty:
         unit_priority.insert(0, UnitTypeId.ZEALOT)
 
       if archives.exists:
@@ -173,7 +173,7 @@ class PvPStrategyAdvisor(Advisor):
       if not placement is None:
         requests.append(WarpInRequest(desired_unit, warpgate, placement, urgency))
 
-    if busy_gates == total_gates and \
+    if busy_gates > 0 and busy_gates == total_gates and \
       self.manager.can_afford(UnitTypeId.ZEALOT) and self.manager.can_afford(UnitTypeId.GATEWAY) \
       and self.manager.already_pending(UnitTypeId.GATEWAY) + self.manager.already_pending(UnitTypeId.WARPGATE) < 2:
       requests.append(StructureRequest(UnitTypeId.GATEWAY, self.manager.planner, urgency=urgency))
