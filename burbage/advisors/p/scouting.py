@@ -213,7 +213,9 @@ class ProtossScoutingAdvisor(Advisor):
         if self.enemy_race == Race.PROTOSS:
           dangers = self.manager.enemy_structures({ UnitTypeId.PYLON, UnitTypeId.GATEWAY })
           gates = self.manager.enemy_structures({ UnitTypeId.GATEWAY })
-          if dangers.closest_to(self.manager.start_location).is_closer_than(50, self.manager.start_location) or (now > 75 and gates.empty and enemy_bases.exists):
+          if dangers.closest_to(self.manager.start_location).is_closer_than(50, self.manager.start_location) or \
+            (now > 75 and gates.empty and enemy_bases.exists) or \
+            gates.amount > 1 and self.manager.enemy_structures(TECH_STRUCTURES).empty:
             known_rushing = True
 
       if known_rushing:
@@ -367,7 +369,7 @@ class ProtossScoutingAdvisor(Advisor):
 
     numObservers = self.manager.units(UnitTypeId.OBSERVER).amount
 
-    for robo in robos.idle:
+    for robo in robos.ready.idle:
       urgency = Urgency.MEDIUM
       if numObservers < 1:
         urgency = Urgency.MEDIUMHIGH
@@ -389,9 +391,9 @@ class ProtossScoutingAdvisor(Advisor):
     if numAdepts >= 2:
       return requests
 
-    if warpgates.idle.exists:
+    if warpgates.ready.exists:
       desired_unit = UnitTypeId.ADEPT
-      warpgate = warpgates.idle.random
+      warpgate = warpgates.ready.random
       abilities = await self.manager.get_available_abilities(warpgate)
       if AbilityId.TRAINWARP_ADEPT in abilities:
         pos = self.manager.structures(UnitTypeId.PYLON).closest_to(self.manager.rally_point).position.to2.random_on_distance([2, 5])
@@ -400,7 +402,7 @@ class ProtossScoutingAdvisor(Advisor):
         if not placement is None:
           requests.append(WarpInRequest(desired_unit, warpgate, placement, Urgency.HIGH))
 
-    if numAdepts < 2 and gateways.idle.exists and not self.manager.warpgate_complete:
-      requests.append(TrainingRequest(UnitTypeId.ADEPT, gateways.idle.first, Urgency.HIGH + 1 - numAdepts))
+    if numAdepts < 2 and gateways.ready.idle.exists and not self.manager.warpgate_complete:
+      requests.append(TrainingRequest(UnitTypeId.ADEPT, gateways.ready.idle.first, Urgency.MEDIUM + 1 - numAdepts))
 
     return requests

@@ -165,7 +165,7 @@ class ProtossEconomyAdvisor(Advisor):
     requests = []
     numWorkers = self.manager.workers.amount
     if numWorkers < (len(nodes) * 2 + assimilators.amount*3) and numWorkers <= WORKER_LIMIT:
-      for nex in self.manager.townhalls.idle:
+      for nex in self.manager.townhalls.ready.idle:
         requests.append(TrainingRequest(UnitTypeId.PROBE, nex, Urgency.VERYHIGH))
     return requests
 
@@ -208,13 +208,20 @@ class ProtossEconomyAdvisor(Advisor):
     mineable = self.sum_mineral_contents(nodes)
 
     if not self.manager.already_pending(UnitTypeId.NEXUS):
-      enemy_bases = self.manager.enemy_structures(BaseStructures)
-      # if we're not out-expanding them
-      nexus_urgency = 2 + enemy_bases.amount - self.manager.townhalls.amount
+      # don't count bases at start locations, because we know they have one, whether we've seen it or not
+      enemy_bases = self.manager.enemy_structures(BaseStructures).filter(lambda base: base.position not in self.manager.enemy_start_locations)
+      # if they're out-expanding us
+      nexus_urgency = 1 + enemy_bases.amount - self.manager.townhalls.amount
 
-      # if any of our workers don't have enough to do
-      if self.manager.workers.amount >= (len(nodes) * 2 + assimilators.filter(lambda a: a.vespene_contents > 0).amount*2): # deliberately below full saturation
-        nexus_urgency += 2
+      total_usable_workers = len(nodes) * 2 + assimilators.filter(lambda a: a.vespene_contents > 0).amount * 3
+
+      # if we're running out of things to do
+      if self.manager.workers.amount >= total_usable_workers - 6: # deliberately 4 probes below full saturation
+        nexus_urgency += 1
+
+      # if we've run out of things to do
+      if self.manager.workers.amount >= total_usable_workers: # deliberately 4 probes below full saturation
+        nexus_urgency += 1
 
       # if we're down to about one base
       if len(nodes) < 10:

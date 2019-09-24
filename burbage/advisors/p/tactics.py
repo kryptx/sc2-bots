@@ -7,6 +7,8 @@ from sc2.units import Units
 from burbage.advisors.advisor import Advisor
 from burbage.common import BaseStructures, list_diff, list_flatten, retreat
 
+all_effect_ids = [name for name, member in EffectId.__members__.items()]
+
 class ProtossTacticsAdvisor(Advisor):
   def __init__(self, manager):
     super().__init__(manager)
@@ -38,8 +40,10 @@ class ProtossTacticsAdvisor(Advisor):
     for effect in self.manager.state.effects:
       if effect.id == EffectId.PSISTORMPERSISTENT:
         for position in effect.positions:
-          for unit in self.manager.units.closer_than(3, position):
+          for unit in self.manager.units.closer_than(4, position):
             self.manager.do(unit.move(unit.position.towards(position, -2)))
+      if effect.id not in all_effect_ids:
+        print(f"UNRECOGNIZED EFFECT ID {effect.id}")
 
     if not self.manager.rally_point:
       return

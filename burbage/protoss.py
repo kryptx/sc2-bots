@@ -9,6 +9,7 @@ from sc2.player import Bot, Computer
 from sc2.unit_command import UnitCommand
 from sc2.units import Units
 from sc2.position import Point2
+from sc2.data import AIBuild
 
 from advisors.p.economy import ProtossEconomyAdvisor
 from advisors.p.tactics import ProtossTacticsAdvisor
@@ -18,6 +19,7 @@ from advisors.p.vp_strategy import PvPStrategyAdvisor
 from planners.protoss import ProtossBasePlanner
 
 from common import Urgency, list_flatten
+all_unit_ids = [name for name, member in UnitTypeId.__members__.items()]
 
 def urgencyValue(req):
   return req.urgency
@@ -93,6 +95,8 @@ class AdvisorBot(sc2.BotAI):
         await self.chat_send("this is not good. (salty)")
 
   async def on_step(self, iteration):
+    for unrecognized_unit in self.enemy_units.filter(lambda u: u.type_id.name not in all_unit_ids):
+      print(f"UNRECOGNIZED UNIT TYPE: {unrecognized_unit.type_id}")
     await self.chit_chat()
     requests = []
     self.desired_supply_buffer = 2 + self.structures({ UnitTypeId.WARPGATE, UnitTypeId.GATEWAY }).amount * 2.5
@@ -107,6 +111,9 @@ class AdvisorBot(sc2.BotAI):
     mineral_threshold = None
     vespene_threshold = None
     supply_threshold = None
+    minerals = self.minerals
+    vespene = self.vespene
+    supply = self.supply_left
     while requests:
       request = requests.pop(0)
       if not request.urgency:
@@ -126,19 +133,22 @@ class AdvisorBot(sc2.BotAI):
         continue
 
       can_afford = True
-      if cost.minerals > self.minerals:
+      if cost.minerals > minerals:
         can_afford = False
         mineral_threshold = request.urgency
 
-      if cost.vespene > self.vespene:
+      if cost.vespene > vespene:
         can_afford = False
         vespene_threshold = request.urgency
 
-      if supply_cost > self.supply_left:
+      if supply_cost > supply:
         can_afford = False
         supply_threshold = request.urgency
 
       if can_afford:
+        minerals -= cost.minerals
+        vespene -= cost.vespene
+        supply -= supply_cost
         action = await request.fulfill(self)
         if action:
           self.do(action)
@@ -217,7 +227,7 @@ maps = [
 def main():
   sc2.run_game(sc2.maps.get(random.choice(maps)), [
     Bot(Race.Protoss, AdvisorBot()),
-    Computer(Race.Protoss, Difficulty.VeryHard)
+    Computer(Race.Protoss, Difficulty.VeryHard, AIBuild.Rush) # Macro, Power, Rush, Timing, Air, (RandomBuild)
   ], realtime=False)
 
 if __name__ == '__main__':

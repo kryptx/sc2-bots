@@ -49,6 +49,7 @@ class TrainingRequest():
     self.expense = unit_type
 
   async def fulfill(self, bot):
+    # print(f"fulfilling TrainingRequest for {self.expense}, urgency {self.urgency}")
     return self.structure.train(self.unit_type)
 
 class WarpInRequest():
@@ -60,6 +61,7 @@ class WarpInRequest():
     self.expense = unit_type
 
   async def fulfill(self, bot):
+    # print(f"fulfilling WarpInRequest for {self.expense}, urgency {self.urgency}")
     return self.warpgate.warp_in(self.unit_type, self.location)
 
 class BasePlanner():
@@ -80,6 +82,7 @@ class StructureRequest():
     self.force_target = force_target
 
   async def fulfill(self, bot):
+    # print(f"fulfilling StructureRequest for {self.expense}, urgency {self.urgency}")
     worker = bot.workers.filter(lambda w: w.is_idle or w.is_collecting)
     if not worker.exists:
       worker = bot.workers
@@ -107,6 +110,7 @@ class ResearchRequest():
     self.expense = ability
 
   async def fulfill(self, bot):
+    # print(f"fulfilling ResearchRequest for {self.expense}, urgency {self.urgency}")
     return self.structure(self.ability)
     # return
 
@@ -205,7 +209,8 @@ class StrategicObjective():
 
   async def micro(self):
     if self.units.empty:
-      self.log("no units to micro")
+      # SHUT UP god
+      # self.log("no units to micro")
       return
 
     if self.manager.time - self.status_since > 2:

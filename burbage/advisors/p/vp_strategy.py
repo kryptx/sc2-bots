@@ -131,7 +131,7 @@ class PvPStrategyAdvisor(Advisor):
       army_priority += 2
 
     # adjust "2" from 1 to 5 or so
-    army_priority += min(Urgency.VERYHIGH, max(0, math.floor(2 / self.optimism)))
+    army_priority += min(Urgency.VERYHIGH, max(0, math.floor(2.5 / self.optimism)))
     urgency = Urgency.LOW + army_priority
 
     counts = {
@@ -174,14 +174,14 @@ class PvPStrategyAdvisor(Advisor):
         requests.append(WarpInRequest(desired_unit, warpgate, placement, urgency))
 
     if busy_gates > 0 and busy_gates == total_gates and \
-      self.manager.can_afford(UnitTypeId.ZEALOT) and self.manager.can_afford(UnitTypeId.GATEWAY) \
-      and self.manager.already_pending(UnitTypeId.GATEWAY) + self.manager.already_pending(UnitTypeId.WARPGATE) < 2:
+      self.manager.already_pending(UnitTypeId.GATEWAY) + self.manager.already_pending(UnitTypeId.WARPGATE) < 2:
+      # we didn't do anything... need another gateway
       requests.append(StructureRequest(UnitTypeId.GATEWAY, self.manager.planner, urgency=urgency))
 
     gateways = self.manager.structures(UnitTypeId.GATEWAY)
 
-    if gateways.idle.exists and not self.manager.warpgate_complete:
-      for g in gateways.idle:
+    if gateways.ready.idle.exists and not self.manager.warpgate_complete:
+      for g in gateways.ready.idle:
         desired_unit = UnitTypeId.STALKER
         if counts[UnitTypeId.ZEALOT] < counts[UnitTypeId.STALKER] or self.manager.vespene < 50:
           desired_unit = UnitTypeId.ZEALOT
@@ -202,7 +202,7 @@ class PvPStrategyAdvisor(Advisor):
   async def audit_research(self):
     requests = []
     # FORGE UPGRADES
-    for idle_forge in self.manager.structures(UnitTypeId.FORGE).idle:
+    for idle_forge in self.manager.structures(UnitTypeId.FORGE).ready.idle:
       forge_abilities = await self.manager.get_available_abilities(idle_forge)
       if AbilityId.FORGERESEARCH_PROTOSSGROUNDWEAPONSLEVEL1 in forge_abilities:
         requests.append(ResearchRequest(AbilityId.FORGERESEARCH_PROTOSSGROUNDWEAPONSLEVEL1, idle_forge, Urgency.MEDIUM))
@@ -256,9 +256,9 @@ class PvPStrategyAdvisor(Advisor):
       council = councils.idle.first
       tc_abilities = await self.manager.get_available_abilities(council)
       if AbilityId.RESEARCH_BLINK in tc_abilities:
-        requests.append(ResearchRequest(AbilityId.RESEARCH_BLINK, council, Urgency.HIGH))
+        requests.append(ResearchRequest(AbilityId.RESEARCH_BLINK, council, Urgency.MEDIUM))
       elif AbilityId.RESEARCH_CHARGE in tc_abilities:
-        requests.append(ResearchRequest(AbilityId.RESEARCH_CHARGE, council, Urgency.MEDIUMHIGH))
+        requests.append(ResearchRequest(AbilityId.RESEARCH_CHARGE, council, Urgency.MEDIUMLOW))
 
     bays = self.manager.structures(UnitTypeId.ROBOTICSBAY)
     if bays.idle.exists:
@@ -303,13 +303,13 @@ class PvPStrategyAdvisor(Advisor):
 
     # BUILD A COUNCIL
     if not councils.exists and not self.manager.already_pending(UnitTypeId.TWILIGHTCOUNCIL):
-      requests.append(StructureRequest(UnitTypeId.TWILIGHTCOUNCIL, self.manager.planner, Urgency.MEDIUMHIGH))
+      requests.append(StructureRequest(UnitTypeId.TWILIGHTCOUNCIL, self.manager.planner, Urgency.MEDIUM))
 
     if not councils.ready.exists:
       return requests
 
     # BUILD AN ARCHIVE
     if not archives.exists and not self.manager.already_pending(UnitTypeId.TEMPLARARCHIVE):
-      requests.append(StructureRequest(UnitTypeId.TEMPLARARCHIVE, self.manager.planner, Urgency.MEDIUMHIGH))
+      requests.append(StructureRequest(UnitTypeId.TEMPLARARCHIVE, self.manager.planner, Urgency.MEDIUM))
 
     return requests
