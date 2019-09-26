@@ -43,14 +43,21 @@ class UnitAllocation():
 class AdvisorBot(sc2.BotAI):
 
   def __init__(self):
+    # chat stuff
     self.version_reported = False
     self.highest_optimism_reported = 1
     self.lowest_optimism_reported = 1
+
+    # stuff that needs to be redesigned
     self.advisor_data = AdvisorData()
     self.tagged_units = UnitAllocation()
-    self.rally_point = None
 
+    # Various info that's often needed
+    self.enemy_race = None
+    self.rally_point = None
     self.desired_supply_buffer = 3
+
+    # protoss specific still...
     self.warpgate_complete = False
 
     self.planner = ProtossBasePlanner(self)
@@ -66,13 +73,16 @@ class AdvisorBot(sc2.BotAI):
       self.scouting_advisor
     ]
 
-##
-# File "burbage/protoss.py", line 69
-#   async def chit_chat(self):
-#           ^
-# SyntaxError: invalid syntax
-# $ source botenv/bin/activate
-# ✔️
+  ##
+  # If you get this error:
+  # File "burbage/protoss.py", line 69
+  #   async def chit_chat(self):
+  #           ^
+  # SyntaxError: invalid syntax
+  #
+  # It's because you need the virtualenv:
+  # $ source botenv/bin/activate
+  #
   async def chit_chat(self):
     if not self.version_reported:
       self.version_reported = True
@@ -180,6 +190,15 @@ class AdvisorBot(sc2.BotAI):
       for objective in self.strategy_advisor.objectives
       if objective.urgency and objective.urgency >= urgency
     ]) + list(self.tagged_units.scouting))
+
+  def enemy_army_size(self):
+    return len(self.advisor_data.scouting['enemy_army'])
+
+  def enemy_army_dps(self):
+    return sum([ max(u.ground_dps, u.air_dps) for u in self.advisor_data.scouting['enemy_army'].values() if u.ground_dps > 5 or u.air_dps > 0 ])
+
+  def enemy_army_max_hp(self):
+    return sum([ u.health_max + u.shield_max for u in self.advisor_data.scouting['enemy_army'].values() if u.ground_dps > 5 or u.air_dps > 0 ])
 
 maps = [
   "(2)16-BitLE",
