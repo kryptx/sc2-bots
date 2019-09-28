@@ -133,7 +133,7 @@ def list_flatten(list_of_lists):
   return [item for sublist in list_of_lists for item in sublist]
 
 def optimism(units, enemy_units):
-  return (sum(u.ground_dps * (u.health + u.shield) * (2 if u.is_massive else 1) for u in units) + 100) / (sum(u.ground_dps * (u.health + u.shield) * (2 if u.is_massive else 1) for u in enemy_units) + 100)
+  return (sum(u.ground_dps * (u.health + u.shield) * (2 if u.is_massive else 1) for u in units) + 300) / (sum(u.ground_dps * (u.health + u.shield) * (2 if u.is_massive else 1) for u in enemy_units) + 300)
 
 def dps(units):
   return sum(u.ground_dps for u in units)
@@ -394,6 +394,9 @@ class DefenseObjective(StrategicObjective):
           objective.allocated.difference_update(adding_units)
         self.allocated = self.allocated.union(adding_units)
         self.units = self.manager.units.tags_in(self.allocated)
+    elif self.enemies.empty:
+      self.allocated.clear()
+      self.units = Units([], self.manager)
 
   def is_complete(self):
     completed = super().is_complete()

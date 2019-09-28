@@ -71,7 +71,10 @@ class ProtossEconomyAdvisor(Advisor):
       # Grab these suckers first
       p.is_idle or
       (p.is_gathering and p.orders[0].target in unacceptable_mineral_tags) or
-      (p.is_gathering and p.orders[0].target in bad_assimilators)
+      (p.is_gathering and p.orders[0].target in bad_assimilators) or
+      p.orders[0].ability in [ AbilityId.ATTACK_ATTACKTOWARDS,
+                               AbilityId.ATTACK_ATTACK,
+                               AbilityId.ATTACK ]
     )
 
     # up to N workers, where N is the number of surplus harvesters, from each nexus where there are any
@@ -210,6 +213,7 @@ class ProtossEconomyAdvisor(Advisor):
         self.manager.do(unit.move(self.next_base_location.towards(self.manager.game_info.map_center, 10)))
     nexus_urgency = Urgency.NONE
     mineable = self.sum_mineral_contents(nodes)
+    gates = self.manager.structures({ UnitTypeId.GATEWAY, UnitTypeId.WARPGATE })
 
     if not self.manager.already_pending(UnitTypeId.NEXUS):
       # don't count bases at start locations, because we know they have one, whether we've seen it or not
@@ -219,24 +223,31 @@ class ProtossEconomyAdvisor(Advisor):
 
       total_desired_harvesters = len(nodes) * 2 + assimilators.filter(lambda a: a.vespene_contents > 0).amount * 3
 
+      if self.manager.strategy_advisor.optimism > 1.25:
+        nexus_urgency += 1
+
+      # if the enemy has any bases apart from the main... we got this
+      if enemy_bases.amount > 0:
+        nexus_urgency += 1
+
       # if we're running out of things to do
-      if self.manager.workers.amount >= total_desired_harvesters - 8:
+      if self.manager.workers.amount >= total_desired_harvesters - 6:
         nexus_urgency += 1
 
       # if we're really running out of things to do
-      if self.manager.workers.amount >= total_desired_harvesters - 4:
+      if self.manager.workers.amount >= total_desired_harvesters - 3:
         nexus_urgency += 1
 
       # if we're down to about one base
       if len(nodes) < 10:
         nexus_urgency += 1
 
-      # if we're running out of minerals
-      if mineable < 8000:
+      # if it'd be nice to have more income
+      if len(nodes) < gates.amount * 3:
         nexus_urgency += 1
 
-      # if we're REALLY running out of minerals
-      if mineable < 3000:
+      # if we're running out of minerals
+      if mineable < 4000:
         nexus_urgency += 1
 
       requests.append(StructureRequest(UnitTypeId.NEXUS, planner=None, urgency=nexus_urgency, force_target=self.next_base_location))
