@@ -66,6 +66,8 @@ class ScoutingMission():
 
   def evaluate_mission_status(self, bot):
     self.abort_adept_teleports(bot)
+    if self.status >= ScoutingMissionStatus.COMPLETE:
+      return
     if self.status == ScoutingMissionStatus.PENDING and self.prerequisite(bot):
       print("Setting scouting mission to active")
       self.status = ScoutingMissionStatus.ACTIVE
@@ -132,17 +134,24 @@ class FindBasesMission(ScoutingMission):
 
   def evaluate_mission_status(self, bot):
     super().evaluate_mission_status(bot)
+    if self.status >= ScoutingMissionStatus.COMPLETE:
+      return
+
     enemy_bases = bot.enemy_structures(BaseStructures)
     if enemy_bases.exists:
+      print("Find Bases Mission Complete")
       self.status = ScoutingMissionStatus.COMPLETE
 
 
 class DetectCheeseMission(ScoutingMission):
-  def __init__(self, unit_priority=[ UnitTypeId.OBSERVER, UnitTypeId.ADEPT, UnitTypeId.PROBE ]):
+  def __init__(self, unit_priority=[ UnitTypeId.PROBE ]):
     super().__init__(unit_priority)
 
   def prerequisite(self, bot):
-    return bot.enemy_structures(BaseStructures).exists
+    if bot.enemy_structures(BaseStructures).exists:
+      print("Starting Detect Cheese Mission")
+      return True
+    return False
 
   def evaluate_mission_status(self, bot):
     super().evaluate_mission_status(bot)
@@ -245,6 +254,10 @@ class WatchEnemyArmyMission(ScoutingMission):
     # what combat units do we know about?
     is_combat_unit = lambda e: (e.type_id not in (UnitTypeId.PROBE, UnitTypeId.DRONE, UnitTypeId.SCV))
     known_enemy_units = Units(bot.advisor_data.scouting['enemy_army'].values(), bot).filter(is_combat_unit)
+    seen_enemy_units = bot.enemy_units.filter(is_combat_unit)
+
+    if seen_enemy_units.amount > known_enemy_units.amount / 5:
+      self.is_lost = False
 
     if known_enemy_units.exists:
       enemies_center = known_enemy_units.center
@@ -252,6 +265,7 @@ class WatchEnemyArmyMission(ScoutingMission):
         scout = self.unit
         if scout.position.distance_to(enemies_center) < 5 and bot.enemy_units.closer_than(10, scout.position).empty:
           self.is_lost = True
+        if self.is_lost:
           # we got some bad intel, boys
           enemy_bases = bot.enemy_structures(BaseStructures)
           if enemy_bases.exists:
@@ -299,7 +313,7 @@ class ProtossScoutingAdvisor(Advisor):
     super().__init__(manager)
     self.missions = [
       FindBasesMission(),
-      ExpansionHuntMission(),
+      ExpansionHuntMission(unit_priority=[ UnitTypeId.ADEPT, UnitTypeId.OBSERVER ]),
       DetectCheeseMission(),
       WatchEnemyArmyMission(unit_priority=[ UnitTypeId.ADEPT, UnitTypeId.PROBE ]),
       WatchEnemyArmyMission(unit_priority=[ UnitTypeId.OBSERVER ]),
@@ -350,7 +364,7 @@ class ProtossScoutingAdvisor(Advisor):
 
   def update_tagged_scouts(self):
     # remove dead scouts
-    self.manager.tagged_units.scouting = { u.tag for u in self.manager.units.tags_in(self.manager.tagged_units.scouting) }
+    self.manager.tagged_units.scouting = { mission.unit.tag for mission in self.missions if mission.status == ScoutingMissionStatus.ACTIVE and mission.unit }
 
   def update_enemy_unit_data(self):
     for unit in self.manager.enemy_units:
@@ -364,21 +378,19 @@ class ProtossScoutingAdvisor(Advisor):
       else:
         mission.unit = None
 
-    if mission.unit and mission.unit.type_id == mission.unit_priority[0]:
-      self.manager.tagged_units.scouting.add(mission.unit.tag)
-
     else:
       for unit_type in mission.unit_priority:
         if mission.unit and mission.unit.type_id == unit_type:
           # no unit better than the one we got
           break
+
         available_units = self.manager.unallocated(unit_type)
         if unit_type == UnitTypeId.PROBE:
-          available_units = available_units.filter(lambda probe: probe.is_idle or probe.is_collecting)
+          available_units = available_units.filter(lambda probe: probe.is_idle or probe.is_collecting or probe.distance_to(mission.targets[0]) < 40)
+
         if available_units.exists:
           if mission.unit:
             self.release_scout(mission.unit)
-
           mission.unit = available_units.closest_to(mission.targets[0])
           self.manager.tagged_units.scouting.add(mission.unit.tag)
           break
@@ -388,24 +400,45 @@ class ProtossScoutingAdvisor(Advisor):
   def release_scout(self, scout):
     self.manager.tagged_units.scouting.discard(scout.tag)
     if scout.type_id == UnitTypeId.PROBE:
+      print("Releasing probe")
       mineral_field = self.manager.mineral_field.filter(lambda f: any(th.position.is_closer_than(15, f.position) for th in self.manager.townhalls))
       if mineral_field.exists:
         self.manager.do(scout.gather(mineral_field.random))
     else:
+      print("Releasing non-probe")
       self.manager.do(scout.move(self.manager.rally_point))
 
   async def evaluate_mission_status(self):
     now = self.manager.time
-    for mission in self.missions:
+    # process active missions first.
+    # this allows missions to use each others' scouts if one completes right when the next one starts.
+    for mission in sorted(self.missions, key=lambda mission: mission.status, reverse=True):
       mission.evaluate_mission_status(self.manager)
       if mission.status == ScoutingMissionStatus.PENDING:
         continue
 
-      mission.update_targets(self.manager)
       if mission.status >= ScoutingMissionStatus.COMPLETE:
         if mission.unit:
-          self.release_scout(mission.unit)
+          improvable_missions = [
+            m
+            for m in self.missions
+            if m.status == ScoutingMissionStatus.ACTIVE
+            and m.targets
+            and m.unit
+              and m.unit.type_id == mission.unit.type_id
+              and m.unit.position.distance_to(m.targets[0]) < mission.unit.position.distance_to(m.targets[0])
+          ]
+          if improvable_missions:
+            self.release_scout(improvable_missions[0].unit)
+            improvable_missions[0].unit = mission.unit
+          else:
+            self.release_scout(mission.unit)
+          # have to do this at the end, it's needed until now
           mission.unit = None
+        continue
+
+      mission.update_targets(self.manager)
+      if not mission.targets:
         continue
 
       scout = self.get_scout(mission)
@@ -477,6 +510,6 @@ class ProtossScoutingAdvisor(Advisor):
           requests.append(WarpInRequest(desired_unit, warpgate, placement, Urgency.HIGH))
 
     if numAdepts < 2 and gateways.ready.idle.exists and not self.manager.warpgate_complete:
-      requests.append(TrainingRequest(UnitTypeId.ADEPT, gateways.ready.idle.first, Urgency.MEDIUM + 1 - numAdepts))
+      requests.append(TrainingRequest(UnitTypeId.ADEPT, gateways.ready.idle.first, Urgency.MEDIUMHIGH + 1 - numAdepts))
 
     return requests

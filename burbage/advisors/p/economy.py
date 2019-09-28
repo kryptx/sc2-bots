@@ -213,14 +213,14 @@ class ProtossEconomyAdvisor(Advisor):
       # if they're out-expanding us
       nexus_urgency = 1 + enemy_bases.amount - self.manager.townhalls.amount
 
-      total_usable_workers = len(nodes) * 2 + assimilators.filter(lambda a: a.vespene_contents > 0).amount * 3
+      total_desired_harvesters = len(nodes) * 2 + assimilators.filter(lambda a: a.vespene_contents > 0).amount * 3
 
       # if we're running out of things to do
-      if self.manager.workers.amount >= total_usable_workers - 6: # deliberately 4 probes below full saturation
+      if self.manager.workers.amount >= total_desired_harvesters - 6:
         nexus_urgency += 1
 
       # if we've run out of things to do
-      if self.manager.workers.amount >= total_usable_workers: # deliberately 4 probes below full saturation
+      if self.manager.workers.amount >= total_desired_harvesters - 2:
         nexus_urgency += 1
 
       # if we're down to about one base

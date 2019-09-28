@@ -42,8 +42,8 @@ class ProtossTacticsAdvisor(Advisor):
         for position in effect.positions:
           for unit in self.manager.units.closer_than(4, position):
             self.manager.do(unit.move(unit.position.towards(position, -2)))
-      if effect.id not in all_effect_ids:
-        print(f"UNRECOGNIZED EFFECT ID {effect.id}")
+      # if effect.id not in all_effect_ids:
+        # print(f"UNRECOGNIZED EFFECT ID {effect.id}")
 
     if not self.manager.rally_point:
       return

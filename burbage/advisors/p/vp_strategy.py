@@ -79,7 +79,7 @@ class PvPStrategyAdvisor(Advisor):
 
     known_enemy_units = self.manager.advisor_data.scouting['enemy_army'].values()
 
-    if (self.manager.supply_used > 196 or self.optimism > 1.2) and not any(
+    if (self.manager.supply_used > 196 or self.optimism > 1.25) and not any(
       isinstance(objective, AttackObjective)
       for objective in self.objectives
     ):
@@ -131,7 +131,7 @@ class PvPStrategyAdvisor(Advisor):
       army_priority += 2
 
     # adjust "2" from 1 to 5 or so
-    army_priority += min(Urgency.VERYHIGH, max(0, math.floor(2.5 / self.optimism)))
+    army_priority += min(Urgency.VERYHIGH, max(0, math.floor(2 / (self.optimism * self.optimism))))
     urgency = Urgency.LOW + army_priority
 
     counts = {
@@ -156,7 +156,7 @@ class PvPStrategyAdvisor(Advisor):
         continue
 
       unit_priority = [ UnitTypeId.STALKER ]
-      if counts[UnitTypeId.ZEALOT] < counts[UnitTypeId.STALKER] or self.manager.structures(UnitTypeId.CYBERNETICSCORE).ready.empty:
+      if counts[UnitTypeId.ZEALOT] < counts[UnitTypeId.STALKER]:
         unit_priority.insert(0, UnitTypeId.ZEALOT)
 
       if archives.exists:
@@ -183,7 +183,7 @@ class PvPStrategyAdvisor(Advisor):
     if gateways.ready.idle.exists and not self.manager.warpgate_complete:
       for g in gateways.ready.idle:
         desired_unit = UnitTypeId.STALKER
-        if counts[UnitTypeId.ZEALOT] < counts[UnitTypeId.STALKER] or self.manager.vespene < 50:
+        if counts[UnitTypeId.ZEALOT] < counts[UnitTypeId.STALKER] or self.manager.structures(UnitTypeId.CYBERNETICSCORE).ready.empty:
           desired_unit = UnitTypeId.ZEALOT
         requests.append(TrainingRequest(desired_unit, g, urgency))
 
