@@ -27,11 +27,23 @@ class ProtossEconomyAdvisor(Advisor):
     if not self.manager.townhalls.ready.exists:
       return
 
+    # mineral patches near one of our bases
+    acceptable_minerals = self.manager.mineral_field.filter(
+      lambda node: any([
+        nex.position.is_closer_than(15, node.position)
+        for nex in self.manager.townhalls.ready
+      ])
+    )
+
+    workers_per_assimilator = 1 + min(2, int(self.manager.workers.amount / acceptable_minerals.amount))
+
     # assimilators probably at bases that have been destroyed
     bad_assimilators = self.manager.structures(
       UnitTypeId.ASSIMILATOR
     ).filter(
       lambda a: all(ex.is_further_than(15, a) for ex in self.manager.owned_expansions.keys())
+                or a.vespene_contents == 0
+                or a.assigned_harvesters > workers_per_assimilator
     )
 
     # assimilators that don't have enough harvesters
@@ -41,15 +53,7 @@ class ProtossEconomyAdvisor(Advisor):
       a.tag
       for a in bad_assimilators
     ]).filter(
-      lambda a: a.assigned_harvesters < 3
-    )
-
-    # mineral patches near one of our bases
-    acceptable_minerals = self.manager.mineral_field.filter(
-      lambda node: any([
-        nex.position.is_closer_than(15, node.position)
-        for nex in self.manager.townhalls.ready
-      ])
+      lambda a: a.assigned_harvesters < workers_per_assimilator
     )
 
     # tag collections for easy selection and matching
@@ -63,7 +67,7 @@ class ProtossEconomyAdvisor(Advisor):
     # anywhere else is strictly forbidden
     unacceptable_mineral_tags = [ f.tag for f in self.manager.mineral_field.tags_not_in(acceptable_mineral_tags) ]
 
-    bad_workers = self.manager.workers.filter(lambda p:
+    bad_workers = self.manager.unallocated(UnitTypeId.PROBE).filter(lambda p:
       # Grab these suckers first
       p.is_idle or
       (p.is_gathering and p.orders[0].target in unacceptable_mineral_tags) or
@@ -95,7 +99,7 @@ class ProtossEconomyAdvisor(Advisor):
       return usable_workers[ taken_workers - num : taken_workers ]
 
     for needy_assimilator in needy_assimilators:
-      workers = get_workers(3 - needy_assimilator.assigned_harvesters)
+      workers = get_workers(workers_per_assimilator - needy_assimilator.assigned_harvesters)
       for worker in workers:
         self.manager.do(worker.gather(needy_assimilator))
 
@@ -216,23 +220,23 @@ class ProtossEconomyAdvisor(Advisor):
       total_desired_harvesters = len(nodes) * 2 + assimilators.filter(lambda a: a.vespene_contents > 0).amount * 3
 
       # if we're running out of things to do
-      if self.manager.workers.amount >= total_desired_harvesters - 6:
+      if self.manager.workers.amount >= total_desired_harvesters - 8:
         nexus_urgency += 1
 
-      # if we've run out of things to do
-      if self.manager.workers.amount >= total_desired_harvesters - 2:
+      # if we're really running out of things to do
+      if self.manager.workers.amount >= total_desired_harvesters - 4:
         nexus_urgency += 1
 
       # if we're down to about one base
       if len(nodes) < 10:
-        nexus_urgency += 2
+        nexus_urgency += 1
 
       # if we're running out of minerals
-      if mineable < 5000:
+      if mineable < 8000:
         nexus_urgency += 1
 
       # if we're REALLY running out of minerals
-      if mineable < 1000:
+      if mineable < 3000:
         nexus_urgency += 1
 
       requests.append(StructureRequest(UnitTypeId.NEXUS, planner=None, urgency=nexus_urgency, force_target=self.next_base_location))

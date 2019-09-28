@@ -75,7 +75,7 @@ class PvPStrategyAdvisor(Advisor):
   def allocate_units(self):
     if self.manager.time - self.last_status >= 2:
       self.last_status = self.manager.time
-      # print(f"optimism {self.optimism}, supply {self.manager.supply_used}, {self.manager.scouting_advisor.enemy_army_size()} known enemy units")
+      # print(f"time {self.manager.time}: optimism {self.optimism}, supply {self.manager.supply_used}, {self.manager.enemy_army_size()} known enemy units")
 
     known_enemy_units = self.manager.advisor_data.scouting['enemy_army'].values()
 
@@ -174,9 +174,9 @@ class PvPStrategyAdvisor(Advisor):
         requests.append(WarpInRequest(desired_unit, warpgate, placement, urgency))
 
     if busy_gates > 0 and busy_gates == total_gates and \
-      self.manager.already_pending(UnitTypeId.GATEWAY) + self.manager.already_pending(UnitTypeId.WARPGATE) < 2:
+      self.manager.already_pending(UnitTypeId.GATEWAY) + self.manager.already_pending(UnitTypeId.WARPGATE) < self.manager.minerals / 250:
       # we didn't do anything... need another gateway
-      requests.append(StructureRequest(UnitTypeId.GATEWAY, self.manager.planner, urgency=urgency))
+      requests.append(StructureRequest(UnitTypeId.GATEWAY, self.manager.planner, urgency=urgency-1))
 
     gateways = self.manager.structures(UnitTypeId.GATEWAY)
 

@@ -241,7 +241,7 @@ class WatchEnemyArmyMission(ScoutingMission):
     self.static_targets = False
 
   def prerequisite(self, bot):
-    return bot.time >= 120
+    return bot.advisor_data.scouting['enemy_is_rushing'] != None
 
   def adjust_for_safety(self, target, bot):
     if self.retreat_until:
@@ -419,6 +419,7 @@ class ProtossScoutingAdvisor(Advisor):
 
       if mission.status >= ScoutingMissionStatus.COMPLETE:
         if mission.unit:
+          # this unit might be better than some other scout on its way towards this location
           improvable_missions = [
             m
             for m in self.missions

@@ -332,7 +332,7 @@ class StrategicObjective():
 
     if may_proceed:
       if self.status == ObjectiveStatus.ALLOCATING:
-        self.log("approved for staging")
+        # self.log("approved for staging")
         self.status = ObjectiveStatus.STAGING
         self.status_since = self.manager.time
 
@@ -375,13 +375,25 @@ class AttackObjective(StrategicObjective):
 class DefenseObjective(StrategicObjective):
   def __init__(self, manager, urgency=Urgency.HIGH, rendezvous=None):
     super().__init__(manager, urgency, rendezvous)
-    self.log("creating defense objective")
+    # self.log("creating defense objective")
 
   @property
   def target(self):
     return self.enemies.center if self.enemies.exists \
       else self.manager.townhalls.center if self.manager.townhalls.exists \
       else self.manager.structures.center
+
+  def allocate(self):
+    super().allocate()
+    mission_optimism = optimism(self.units, self.enemies)
+    if mission_optimism < 1 and self.enemies.amount > 2:
+      nearby_workers = self.manager.unallocated(UnitTypeId.PROBE).closer_than(20, self.enemies.center)
+      if nearby_workers.exists:
+        adding_units = set(worker.tag for worker in nearby_workers)
+        for objective in self.manager.strategy_advisor.objectives:
+          objective.allocated.difference_update(adding_units)
+        self.allocated = self.allocated.union(adding_units)
+        self.units = self.manager.units.tags_in(self.allocated)
 
   def is_complete(self):
     completed = super().is_complete()
@@ -403,7 +415,7 @@ class DefenseObjective(StrategicObjective):
     return enemy_units.amount * 2
 
   def stage(self):
-    self.log("skipping staging because reasons (maybe do something here later, recall or something)")
+    # self.log("skipping staging because reasons (maybe do something here later, recall or something)")
     self.status = ObjectiveStatus.ACTIVE
     self.status_since = self.manager.time
 
