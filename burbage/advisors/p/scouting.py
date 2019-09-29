@@ -7,7 +7,8 @@ from sc2.units import Units
 from sc2.position import Point2
 
 from burbage.advisors.advisor import Advisor
-from burbage.common import Urgency, WarpInRequest, TrainingRequest, StructureRequest, BaseStructures, list_diff, list_flatten
+from burbage.common import Urgency, WarpInRequest, TrainingRequest, StructureRequest, BaseStructures, list_diff, list_flatten, ObjectiveStatus
+from burbage.advisors.p.vp_strategy import DefenseObjective, AttackObjective
 
 class ScoutingMissionType(enum.IntFlag):
   FIND_BASES = 1,
@@ -288,6 +289,23 @@ class SupportArmyMission(ScoutingMission):
     super().__init__(unit_priority)
     self.static_targets = False
 
+  def prerequisite(self, bot):
+    return bot.units.exists
+
+  def generate_targets(self, bot):
+    # if we're defending
+    for objective in bot.strategy_advisor.objectives:
+      if isinstance(objective, DefenseObjective) and objective.units.exists and objective.enemies.exists:
+        self.targets = [ objective.units.closest_to(objective.enemies.center) ]
+        return
+
+    # if we're attacking
+    for objective in bot.strategy_advisor.objectives:
+      if isinstance(objective, AttackObjective) and objective.units.exists and objective.enemies.exists and objective.status != ObjectiveStatus.RETREATING:
+        self.targets = [ objective.units.closest_to(objective.enemies.center) ]
+        return
+
+    self.targets = [ bot.rally_point ]
 
 class ExpansionHuntMission(ScoutingMission):
   def __init__(self, unit_priority=[ UnitTypeId.OBSERVER, UnitTypeId.ADEPT, UnitTypeId.PROBE ]):
@@ -317,7 +335,8 @@ class ProtossScoutingAdvisor(Advisor):
       DetectCheeseMission(),
       WatchEnemyArmyMission(unit_priority=[ UnitTypeId.ADEPT, UnitTypeId.PROBE ]),
       WatchEnemyArmyMission(unit_priority=[ UnitTypeId.OBSERVER ]),
-      WatchEnemyArmyMission(unit_priority=[ UnitTypeId.ADEPTPHASESHIFT ])
+      WatchEnemyArmyMission(unit_priority=[ UnitTypeId.ADEPTPHASESHIFT ]),
+      SupportArmyMission(unit_priority=[ UnitTypeId.OBSERVER ])
     ]
     manager.advisor_data.scouting['enemy_army'] = dict()
     manager.advisor_data.scouting['enemy_is_rushing'] = None

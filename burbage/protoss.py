@@ -1,5 +1,6 @@
 import random
 import math
+import itertools
 from git import Repo
 
 import sc2
@@ -18,7 +19,7 @@ from advisors.p.vp_strategy import PvPStrategyAdvisor, AttackObjective, DefenseO
 
 from planners.protoss import ProtossBasePlanner
 
-from common import Urgency, list_flatten
+from common import Urgency, list_flatten, ObjectiveStatus
 all_unit_ids = [name for name, member in UnitTypeId.__members__.items()]
 
 def urgencyValue(req):
@@ -116,16 +117,16 @@ class AdvisorBot(sc2.BotAI):
     if self.last_camera_move < self.time - 2:
       self.last_camera_move = self.time
 
-      # if we're attacking
-      for objective in self.strategy_advisor.objectives:
-        if isinstance(objective, AttackObjective):
-          await self._client.move_camera(objective.units.closest_to(objective.target).position)
-          return
-
       # if we're defending
       for objective in self.strategy_advisor.objectives:
         if isinstance(objective, DefenseObjective):
-          await self._client.move_camera(objective.enemies.center)
+          await self._client.move_camera(objective.enemies.closest_to(objective.enemies.center))
+          return
+
+      # if we're attacking
+      for objective in self.strategy_advisor.objectives:
+        if isinstance(objective, AttackObjective) and any(unit.position.is_closer_than(10, enemy) for (unit, enemy) in itertools.product(objective.units, objective.enemies)):
+          await self._client.move_camera(objective.units.closest_to(objective.enemies.center))
           return
 
       # if we're building a new base

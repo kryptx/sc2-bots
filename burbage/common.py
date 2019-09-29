@@ -398,6 +398,7 @@ class DefenseObjective(StrategicObjective):
 
   def allocate(self):
     super().allocate()
+    # get workers if needed
     mission_optimism = optimism(self.units, self.enemies)
     if mission_optimism < 1 and self.enemies.amount > 2:
       nearby_workers = self.manager.unallocated(UnitTypeId.PROBE).closer_than(20, self.enemies.center)
@@ -407,6 +408,9 @@ class DefenseObjective(StrategicObjective):
           objective.allocated.difference_update(adding_units)
         self.allocated = self.allocated.union(adding_units)
         self.units = self.manager.units.tags_in(self.allocated)
+    # release units immediately when enemies have left
+    # this will allow probes to return to work
+    # and army units to be reallocated or brought to rally
     elif self.enemies.empty:
       self.allocated.clear()
       self.units = Units([], self.manager)
