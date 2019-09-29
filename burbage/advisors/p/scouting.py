@@ -331,9 +331,9 @@ class ProtossScoutingAdvisor(Advisor):
     super().__init__(manager)
     self.missions = [
       FindBasesMission(),
-      ExpansionHuntMission(unit_priority=[ UnitTypeId.ADEPT, UnitTypeId.OBSERVER ]),
       DetectCheeseMission(),
-      WatchEnemyArmyMission(unit_priority=[ UnitTypeId.ADEPT, UnitTypeId.PROBE ]),
+      ExpansionHuntMission(unit_priority=[ UnitTypeId.ADEPT, UnitTypeId.OBSERVER ]),
+      WatchEnemyArmyMission(unit_priority=[ UnitTypeId.ADEPT, UnitTypeId.ZEALOT, UnitTypeId.PROBE ]),
       WatchEnemyArmyMission(unit_priority=[ UnitTypeId.OBSERVER ]),
       WatchEnemyArmyMission(unit_priority=[ UnitTypeId.ADEPTPHASESHIFT ]),
       SupportArmyMission(unit_priority=[ UnitTypeId.OBSERVER ])
