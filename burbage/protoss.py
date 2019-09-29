@@ -14,7 +14,7 @@ from sc2.data import AIBuild
 from advisors.p.economy import ProtossEconomyAdvisor
 from advisors.p.tactics import ProtossTacticsAdvisor
 from advisors.p.scouting import ProtossScoutingAdvisor
-from advisors.p.vp_strategy import PvPStrategyAdvisor
+from advisors.p.vp_strategy import PvPStrategyAdvisor, AttackObjective, DefenseObjective
 
 from planners.protoss import ProtossBasePlanner
 
@@ -47,6 +47,7 @@ class AdvisorBot(sc2.BotAI):
     self.version_reported = False
     self.highest_optimism_reported = 1
     self.lowest_optimism_reported = 1
+    self.last_camera_move = 0
 
     # stuff that needs to be redesigned
     self.advisor_data = AdvisorData()
@@ -111,10 +112,65 @@ class AdvisorBot(sc2.BotAI):
         self.lowest_optimism_reported = 0.1
         await self.chat_send("this is not good. (salty)")
 
+  async def set_camera(self):
+    if self.last_camera_move < self.time - 2:
+      self.last_camera_move = self.time
+
+      # if we're attacking
+      for objective in self.strategy_advisor.objectives:
+        if isinstance(objective, AttackObjective):
+          await self._client.move_camera(objective.units.closest_to(objective.target).position)
+          return
+
+      # if we're defending
+      for objective in self.strategy_advisor.objectives:
+        if isinstance(objective, DefenseObjective):
+          await self._client.move_camera(objective.enemies.center)
+          return
+
+      # if we're building a new base
+      if self.already_pending(UnitTypeId.NEXUS) > 0 and self.structures(UnitTypeId.NEXUS).not_ready.empty:
+        await self._client.move_camera(self.economy_advisor.next_base_location)
+        return
+
+      # if we can see more than half their army
+      if self.enemy_units.amount > self.enemy_army_size() / 2:
+        await self._client.move_camera(self.enemy_units.center)
+        return
+
+      # if a scout sees something
+      scouts = self.units.tags_in(self.tagged_units.scouting)
+      if scouts.exists:
+        interesting_scouts = scouts.filter(lambda scout:
+          any(enemy.position.is_closer_than(8, scout)
+            for enemy in self.enemy_units + self.enemy_structures
+          )
+        )
+
+        if interesting_scouts.exists:
+          await self._client.move_camera(interesting_scouts.first.position)
+          return
+
+      if self.structures.filter(lambda st: st.has_buff(BuffId.CHRONOBOOSTENERGYCOST) and st.buff_duration_remain > 50).exists:
+        await self._client.move_camera(
+          self.structures.filter(lambda st:
+            st.has_buff(BuffId.CHRONOBOOSTENERGYCOST)
+            and st.buff_duration_remain > 15
+          ).first.position
+        )
+        return
+
+      else:
+        await self._client.move_camera(
+          self.rally_point if self.rally_point and self.units.closer_than(10, self.rally_point).amount > 2
+          else self.townhalls.first
+        )
+
   async def on_step(self, iteration):
     for unrecognized_unit in self.enemy_units.filter(lambda u: u.type_id.name not in all_unit_ids):
       print(f"UNRECOGNIZED UNIT TYPE: {unrecognized_unit.type_id}")
     await self.chit_chat()
+    await self.set_camera()
     requests = []
     self.desired_supply_buffer = 2 + self.structures({ UnitTypeId.WARPGATE, UnitTypeId.GATEWAY }).amount * 2.5
     for advisor in self.advisors:
@@ -192,7 +248,7 @@ class AdvisorBot(sc2.BotAI):
     ]) + list(self.tagged_units.scouting))
 
   def enemy_army_size(self):
-    return len(self.advisor_data.scouting['enemy_army'])
+    return len([ u for u in self.advisor_data.scouting['enemy_army'].values() if u.type_id not in [ UnitTypeId.PROBE, UnitTypeId.DRONE, UnitTypeId.SCV ] ])
 
   def enemy_army_dps(self):
     return sum([ max(u.ground_dps, u.air_dps) for u in self.advisor_data.scouting['enemy_army'].values() if u.ground_dps > 5 or u.air_dps > 0 ])

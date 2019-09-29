@@ -223,7 +223,7 @@ class ProtossEconomyAdvisor(Advisor):
 
       total_desired_harvesters = len(nodes) * 2 + assimilators.filter(lambda a: a.vespene_contents > 0).amount * 3
 
-      if self.manager.strategy_advisor.optimism > 1.25:
+      if self.manager.strategy_advisor.optimism > 1.1:
         nexus_urgency += 1
 
       # if the enemy has any bases apart from the main... we got this

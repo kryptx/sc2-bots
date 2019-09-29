@@ -100,8 +100,18 @@ class StructureRequest():
       can_build = await bot.can_place(self.structure_type, location)
       if can_build:
         return worker.closest_to(location).build(self.structure_type, location)
+    print("Failed to build structure due to poor planning!")
 
-    print("FAILED TO BUILD STRUCTURE DUE TO POOR PLANNING")
+    if not bot.already_pending(UnitTypeId.PYLON):
+      targets = self.planner.get_available_positions(UnitTypeId.PYLON)
+      for location in targets:
+        can_build = await bot.can_place(UnitTypeId.PYLON, location)
+        if can_build:
+          print("-> Force-built pylon.")
+          return worker.closest_to(location).build(UnitTypeId.PYLON, location)
+      print("-> Failed to force-build pylon.")
+    else:
+      print("-> Pylon already pending.")
 
 class ResearchRequest():
   def __init__(self, ability, structure, urgency):
@@ -260,7 +270,7 @@ class StrategicObjective():
   def stage(self):
     allocated_units = self.units
 
-    if allocated_units.amount > self.enemies.filter(lambda e: not e.is_structure).amount * 5:
+    if optimism(allocated_units, self.enemies) > 2.5:
       for attacking_unit in allocated_units:
         self.manager.do(attacking_unit.attack(self.target.position))
       self.log("Upgrading to active due to apparent overwhelming advantage")
@@ -280,8 +290,11 @@ class StrategicObjective():
     if not self.rendezvous:
       for attacking_unit in allocated_units:
         self.manager.do(attacking_unit.attack(self.target.position))
-      if any(enemy.position.is_closer_than(10, friendly) for (enemy, friendly) in itertools.product(self.manager.enemy_units + self.manager.enemy_structures, allocated_units)):
-        self.rendezvous = allocated_units.center
+      if any(structure.position.is_closer_than(20, friendly) for (structure, friendly) in itertools.product(self.manager.enemy_structures, allocated_units)):
+        front_units = allocated_units.filter(lambda friendly: self.manager.enemy_structures.closer_than(20, friendly).exists)
+        next_units = allocated_units.tags_not_in(u.tag for u in front_units)
+        next_unit = next_units.closest_to(front_units.center) if next_units.exists else front_units.random
+        self.rendezvous = next_unit.position
 
     if not self.rendezvous:
       return
@@ -294,7 +307,7 @@ class StrategicObjective():
       self.status_since = self.manager.time
       return
 
-    if self.manager.enemy_units.closer_than(15, self.rendezvous).amount > 3:
+    if self.manager.enemy_units.closer_than(8, self.rendezvous).amount > 3:
       for attacking_unit in allocated_units:
         self.manager.do(attacking_unit.attack(self.target.position))
       self.log("Upgrading to active due to enemy units at rendezvous")
