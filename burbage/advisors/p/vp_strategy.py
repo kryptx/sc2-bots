@@ -8,7 +8,7 @@ from sc2.position import Point2
 
 from burbage.advisors.advisor import Advisor
 from burbage.common import Urgency, TrainingRequest, WarpInRequest, StructureRequest, ResearchRequest
-from burbage.common import DefenseObjective, AttackObjective, BaseStructures, CombatUnits, list_flatten, optimism, retreat
+from burbage.common import DefenseObjective, AttackObjective, ObjectiveStatus, BaseStructures, CombatUnits, list_flatten, optimism, retreat
 
 BASE_DEFENSE_RADIUS = 35
 
@@ -27,6 +27,9 @@ class PvPStrategyAdvisor(Advisor):
 
   async def on_unit_destroyed(self, unit):
     for objective in self.objectives:
+      if unit in objective.allocated and objective.status == ObjectiveStatus.STAGING:
+        objective.log("Upgrading to active because a unit was killed while staging")
+        objective.status = ObjectiveStatus.ACTIVE
       objective.allocated.discard(unit)
 
   async def tick(self):
@@ -130,8 +133,8 @@ class PvPStrategyAdvisor(Advisor):
     if self.manager.time < 240 and self.manager.advisor_data.scouting['enemy_is_rushing']:
       army_priority += 2
 
-    # adjust "2" from 1 to 5 or so
-    army_priority += min(Urgency.VERYHIGH, max(0, math.floor(2 / (self.optimism * self.optimism))))
+    # adjust from 1 to 3 or so
+    army_priority += min(Urgency.VERYHIGH, max(0, math.floor(1.5 / (self.optimism * self.optimism))))
     urgency = Urgency.LOW + army_priority
 
     counts = {

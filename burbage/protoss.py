@@ -143,23 +143,11 @@ class AdvisorBot(sc2.BotAI):
       scouts = self.units.tags_in(self.tagged_units.scouting)
       if scouts.exists:
         interesting_scouts = scouts.filter(lambda scout:
-          any(enemy.position.is_closer_than(8, scout)
-            for enemy in self.enemy_units + self.enemy_structures
-          )
-        )
+          (self.enemy_units + self.enemy_structures).closer_than(8, scout.position).amount > 1)
 
         if interesting_scouts.exists:
           await self._client.move_camera(interesting_scouts.first.position)
           return
-
-      if self.structures.filter(lambda st: st.has_buff(BuffId.CHRONOBOOSTENERGYCOST) and st.buff_duration_remain > 50).exists:
-        await self._client.move_camera(
-          self.structures.filter(lambda st:
-            st.has_buff(BuffId.CHRONOBOOSTENERGYCOST)
-            and st.buff_duration_remain > 15
-          ).first.position
-        )
-        return
 
       else:
         await self._client.move_camera(
@@ -274,7 +262,7 @@ maps = [
   "BattleontheBoardwalkLE",
   "BelShirVestigeLE",
   "BlackpinkLE",
-#  "BloodBoilLE", #-- fuck this map
+  "BloodBoilLE",
   "BlueshiftLE",
   "CactusValleyLE",
   "CatalystLE",
