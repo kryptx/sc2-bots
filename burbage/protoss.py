@@ -119,7 +119,7 @@ class AdvisorBot(sc2.BotAI):
 
       # if we're defending
       for objective in self.strategy_advisor.objectives:
-        if isinstance(objective, DefenseObjective):
+        if isinstance(objective, DefenseObjective) and objective.enemies.amount > 1:
           await self._client.move_camera(objective.enemies.closest_to(objective.enemies.center))
           return
 
@@ -149,11 +149,10 @@ class AdvisorBot(sc2.BotAI):
           await self._client.move_camera(interesting_scouts.first.position)
           return
 
-      else:
-        await self._client.move_camera(
-          self.rally_point if self.rally_point and self.units.closer_than(10, self.rally_point).amount > 2
-          else self.townhalls.first
-        )
+      await self._client.move_camera(
+        self.rally_point if self.rally_point and self.units.closer_than(10, self.rally_point).amount > 2
+        else self.townhalls.first
+      )
 
   async def on_step(self, iteration):
     for unrecognized_unit in self.enemy_units.filter(lambda u: u.type_id.name not in all_unit_ids):
