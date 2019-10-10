@@ -7,5 +7,9 @@ botenv/
 # my editable local install?
 *.egg-info/
 
+# logs
+*.log
+logs/*
+
 # some garbage
 __pycache__
