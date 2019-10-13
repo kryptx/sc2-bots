@@ -88,7 +88,9 @@ class MacroManager(BotModule):
 
   def maybe_expand(self, nodes, assimilators):
     requests = []
-    if not self.shared.next_base_location or any(nex.position == self.shared.next_base_location for nex in self.townhalls):
+    while (not self.shared.next_base_location or
+           any(nex.position == self.shared.next_base_location for nex in self.townhalls) or
+           any(s.position.is_closer_than(5, self.shared.next_base_location) for s in self.enemy_structures(BaseStructures))):
       self.shared.next_base_location = self.find_next_base()
     if not self.shared.next_base_location:
       return requests

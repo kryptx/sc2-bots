@@ -71,7 +71,7 @@ def build():
             unit_priority=[ UnitTypeId.PROBE ],
             retreat_while=shield_is_not_full),
           ExpansionHuntMission(bot,
-            unit_priority=[ UnitTypeId.ADEPT, UnitTypeId.OBSERVER ],
+            unit_priority=[ UnitTypeId.OBSERVER, UnitTypeId.ADEPT ],
             retreat_while=shield_is_not_full),
           WatchEnemyArmyMission(bot,
             unit_priority=[ UnitTypeId.ADEPT, UnitTypeId.ZEALOT, UnitTypeId.PROBE ],

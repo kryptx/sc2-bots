@@ -168,7 +168,7 @@ class ScoutManager(BotModule):
     urgency = Urgency.MEDIUMLOW
     if numObservers < 1:
       urgency = Urgency.MEDIUM
-    if numObservers < 2:
+    if numObservers < 3:
       requests.append(TrainingRequest(UnitTypeId.OBSERVER, urgency))
       numObservers += 1
 
