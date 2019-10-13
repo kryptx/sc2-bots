@@ -2,7 +2,7 @@
 
 ## Features
 * Module-based design, allows composing bots more abstractly
-  * Only tell the bot what units and upgrades you want - it can figure out the structures
+  * Only tell the bot what you actually want - it automatically builds the required tech
 * Game state tracking
   * Can remember all units that have been seen
 * Smart, effective worker balancing
