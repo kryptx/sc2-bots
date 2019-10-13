@@ -6,7 +6,7 @@ from modubot.common import list_flatten, BaseStructures, TrainingRequest, Struct
 from modubot.modules.module import BotModule
 
 class MacroManager(BotModule):
-  def __init__(self, bot, worker_limit=66):
+  def __init__(self, bot, worker_limit=75):
     super().__init__(bot)
     bot.shared.next_base_location = None
     self.worker_limit = worker_limit
@@ -59,7 +59,8 @@ class MacroManager(BotModule):
 
   def check_worker_health(self, nodes, assimilators):
     requests = []
-    numWorkers = self.workers.amount
+    # when a worker goes into an assimilator... the bot thinks it doesn't exist.
+    numWorkers = self.workers.amount + assimilators.amount
     if numWorkers < min(1 + len(nodes) * 2 + assimilators.amount * 3, self.worker_limit) and self.townhalls.ready.idle.exists:
       requests.append(TrainingRequest(UnitTypeId.PROBE, Urgency.VERYHIGH))
     return requests
