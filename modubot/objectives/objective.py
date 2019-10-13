@@ -1,5 +1,6 @@
 import enum
 import itertools
+import logging
 
 from sc2.constants import UnitTypeId
 from sc2.position import Point2
@@ -24,13 +25,14 @@ class StrategicObjective():
     self.units = Units([], bot)
     self.last_seen = bot.time
     self.enemies = self.find_enemies()
+    self.logger = logging.getLogger(f"ModuBot.{type(self)}.__name__")
 
   @property
   def target(self):
     raise NotImplementedError("You must extend this class and provide a target property")
 
   def log(self, msg):
-    print(f"{type(self).__name__} {msg}")
+    self.logger.info(f"{type(self).__name__} {msg}")
 
   def is_complete(self):
     if self.bot.time - self.last_seen > 5:
