@@ -59,8 +59,8 @@ class MacroManager(BotModule):
 
   def check_worker_health(self, nodes, assimilators):
     requests = []
-    numWorkers = self.workers.amount + self.already_pending(UnitTypeId.PROBE)
-    if numWorkers < (len(nodes) * 2 + assimilators.amount*3) and numWorkers <= self.worker_limit and self.townhalls.ready.idle.exists:
+    numWorkers = self.workers.amount
+    if numWorkers < min(1 + len(nodes) * 2 + assimilators.amount * 3, self.worker_limit) and self.townhalls.ready.idle.exists:
       requests.append(TrainingRequest(UnitTypeId.PROBE, Urgency.VERYHIGH))
     return requests
 

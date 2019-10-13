@@ -1,24 +1,24 @@
 from sc2.constants import UnitTypeId
 
-from modubot.scouting.mission import ScoutingMission
+from modubot.scouting.mission import ScoutingMission, identity
 
 class SupportArmyMission(ScoutingMission):
-  def __init__(self, unit_priority=[ UnitTypeId.OBSERVER, UnitTypeId.ADEPT, UnitTypeId.PROBE ]):
-    super().__init__(unit_priority)
+  def __init__(self, bot, unit_priority=[], retreat_while=lambda scout: False):
+    super().__init__(bot, unit_priority, retreat_while)
     self.static_targets = False
 
-  def prerequisite(self, bot):
-    return bot.units.exists
+  def prerequisite(self):
+    return self.units.exists
 
-  def generate_targets(self, bot):
+  def generate_targets(self):
     # if we're defending
-    if bot.shared.defenders.exists and bot.shared.threats.exists:
-      self.targets = [ bot.shared.defenders.closest_to(bot.shared.threats.center) ]
+    if self.shared.defenders.exists and self.shared.threats.exists:
+      self.targets = [ self.shared.defenders.closest_to(self.shared.threats.center) ]
       return
 
     # if we're attacking
-    if bot.shared.attackers.exists and bot.shared.victims.exists:
-      self.targets = [ bot.shared.attackers.closest_to(bot.shared.victims.center) ]
+    if self.shared.attackers.exists and self.shared.victims.exists:
+      self.targets = [ self.shared.attackers.closest_to(self.shared.victims.center) ]
       return
 
-    self.targets = [ bot.shared.rally_point ]
+    self.targets = [ self.shared.rally_point ]

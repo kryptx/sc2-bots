@@ -24,6 +24,9 @@ def army_priority(bot):
 
   return calculate_priorities
 
+def shield_is_not_full(unit):
+  return unit.shield < unit.shield_max * 0.95
+
 def build():
   bot = ModuBot(limits={
       UnitTypeId.FORGE: 1,
@@ -59,15 +62,30 @@ def build():
           else None
         )
       ),
-      ScoutManager(bot, [
-        FindBasesMission(),
-        DetectCheeseMission(),
-        ExpansionHuntMission(unit_priority=[ UnitTypeId.ADEPT, UnitTypeId.OBSERVER ]),
-        WatchEnemyArmyMission(unit_priority=[ UnitTypeId.ADEPT, UnitTypeId.ZEALOT, UnitTypeId.PROBE ]),
-        WatchEnemyArmyMission(unit_priority=[ UnitTypeId.OBSERVER ]),
-        WatchEnemyArmyMission(unit_priority=[ UnitTypeId.ADEPTPHASESHIFT ]),
-        SupportArmyMission(unit_priority=[ UnitTypeId.OBSERVER ])
-      ]),
+      ScoutManager(bot,
+        missions=[
+          FindBasesMission(bot,
+            unit_priority=[ UnitTypeId.OBSERVER, UnitTypeId.ADEPT, UnitTypeId.PROBE ],
+            retreat_while=shield_is_not_full),
+          DetectCheeseMission(bot,
+            unit_priority=[ UnitTypeId.PROBE ],
+            retreat_while=shield_is_not_full),
+          ExpansionHuntMission(bot,
+            unit_priority=[ UnitTypeId.ADEPT, UnitTypeId.OBSERVER ],
+            retreat_while=shield_is_not_full),
+          WatchEnemyArmyMission(bot,
+            unit_priority=[ UnitTypeId.ADEPT, UnitTypeId.ZEALOT, UnitTypeId.PROBE ],
+            retreat_while=shield_is_not_full),
+          WatchEnemyArmyMission(bot,
+            unit_priority=[ UnitTypeId.OBSERVER ],
+            retreat_while=shield_is_not_full),
+          WatchEnemyArmyMission(bot,
+            unit_priority=[ UnitTypeId.ADEPTPHASESHIFT ],
+            retreat_while=shield_is_not_full),
+          SupportArmyMission(bot,
+            unit_priority=[ UnitTypeId.OBSERVER ],
+            retreat_while=shield_is_not_full)
+        ]),
       SimpleArmyBuilder(bot, get_priorities=army_priority(bot)),
       Upgrader(bot,
         upgrade_sets={

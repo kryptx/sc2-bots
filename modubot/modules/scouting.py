@@ -2,18 +2,21 @@ import asyncio
 import random
 
 import sc2
+from sc2 import Race
 from sc2.constants import *
 from sc2.units import Units
 from sc2.position import Point2
 
 from modubot.common import Urgency, WarpInRequest, TrainingRequest, StructureRequest, BaseStructures, list_diff, list_flatten
 from modubot.modules.module import BotModule
-from modubot.scouting.mission import ScoutingMissionStatus, Race
+from modubot.scouting.mission import ScoutingMissionStatus
 
 class ScoutManager(BotModule):
-  def __init__(self, bot, missions=[]):
+  def __init__(self, bot, missions=[], retreat_while=lambda scout: False):
     super().__init__(bot)
     self.missions = missions
+    self.retreat_while = retreat_while
+    self.cancel_shades = dict()
     bot.shared.enemy_race = None
     bot.shared.enemy_is_rushing = None
     bot.shared.scouts = set()
@@ -24,8 +27,9 @@ class ScoutManager(BotModule):
         await m.on_unit_destroyed(unit)
 
   async def on_step(self, iteration):
+    self.abort_adept_teleports()
     if self.shared.enemy_race is None:
-      if self.enemy_race != Race.RANDOM:
+      if self.enemy_race != Race.Random:
         self.shared.enemy_race = self.enemy_race
       elif self.enemy_units.exists:
         self.shared.enemy_race = self.enemy_units.random.race
@@ -81,7 +85,7 @@ class ScoutManager(BotModule):
     # process active missions first.
     # this allows missions to use each others' scouts if one completes right when the next one starts.
     for mission in sorted(self.missions, key=lambda mission: mission.status, reverse=True):
-      mission.evaluate_mission_status(self)
+      mission.evaluate_mission_status()
       if mission.status == ScoutingMissionStatus.PENDING:
         continue
 
@@ -106,7 +110,7 @@ class ScoutManager(BotModule):
           mission.unit = None
         continue
 
-      mission.update_targets(self)
+      mission.update_targets()
       if not mission.targets:
         continue
 
@@ -118,10 +122,30 @@ class ScoutManager(BotModule):
       danger = self.find_danger(scout, bonus_range=3)
       # things to do only when there are -- or aren't -- enemies
       if danger.exists:
-        # have to await because we check adept abilities
-        target = await mission.adjust_for_danger(target, danger, self)
-      else:
-        target = mission.adjust_for_safety(target, self)
+        now = self.time
+        scout = self.units.tags_in([ mission.unit.tag ]).first
+        if scout.is_flying:
+          target = scout.position.towards(danger.center, -2)
+        else:
+          target = self.shared.rally_point
+
+        if scout.type_id == UnitTypeId.ADEPT:
+          abilities = await self.get_available_abilities(scout)
+          if AbilityId.ADEPTPHASESHIFT_ADEPTPHASESHIFT in abilities:
+            self.do(scout(AbilityId.ADEPTPHASESHIFT_ADEPTPHASESHIFT, scout.position))
+            mission.retreat_until = now + 13
+            # TODO this is the wrong self
+            self.cancel_shades[mission.unit.tag] = now + 6
+
+      if mission.retreat_while(scout):
+        if mission.static_targets and mission.retreat_until and now >= mission.retreat_until:
+          # they came after the scout while we were waiting for its shield to recharge
+          mission.next_target()
+        # at this point, the timer is only for the purpose of whether to give up on the current target
+        mission.retreat_until = max(mission.retreat_until, now) if mission.retreat_until else now
+
+      if danger.empty and mission.retreat_until and mission.retreat_until >= now:
+        target = None
 
       if target:
         self.do(scout.move(target))
@@ -166,3 +190,14 @@ class ScoutManager(BotModule):
       requests.append(TrainingRequest(UnitTypeId.ADEPT, Urgency.MEDIUM + 1 - numAdepts))
 
     return requests
+
+  def abort_adept_teleports(self):
+    if not self.cancel_shades:
+      return
+
+    to_cancel = [tag for tag in self.cancel_shades.keys() if self.cancel_shades[tag] <= self.time]
+    for adept in self.units.tags_in(to_cancel):
+      self.do(adept(AbilityId.CANCEL_ADEPTPHASESHIFT))
+
+    for tag in to_cancel:
+      self.cancel_shades.pop(tag)

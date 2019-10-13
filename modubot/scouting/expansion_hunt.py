@@ -1,22 +1,22 @@
 from sc2.constants import UnitTypeId
 
 from modubot.common import BaseStructures
-from modubot.scouting.mission import ScoutingMission
+from modubot.scouting.mission import ScoutingMission, identity
 
 class ExpansionHuntMission(ScoutingMission):
-  def __init__(self, unit_priority=[ UnitTypeId.OBSERVER, UnitTypeId.ADEPT, UnitTypeId.PROBE ]):
-    super().__init__(unit_priority)
+  def __init__(self, bot, unit_priority=[], retreat_while=lambda scout: False):
+    super().__init__(bot, unit_priority, retreat_while)
 
-  def prerequisite(self, bot):
-    return bot.enemy_structures.exists and bot.time >= 120
+  def prerequisite(self):
+    return self.enemy_structures.exists and self.time >= 120
 
-  def update_targets(self, bot):
-    super().update_targets(bot)
-    bases = bot.structures(BaseStructures) + bot.enemy_structures(BaseStructures)
+  def update_targets(self):
+    super().update_targets()
+    bases = self.structures(BaseStructures) + self.enemy_structures(BaseStructures)
     if self.targets and bases.exists and bases.closer_than(1.0, self.targets[0]).exists:
-      self.next_target(bot)
+      self.next_target()
 
-  def generate_targets(self, bot):
-    enemy_bases = [b.position for b in bot.enemy_structures(BaseStructures)]
-    our_bases = list(bot.owned_expansions.keys())
-    self.targets = [ p for p in bot.expansion_locations.keys() if p not in enemy_bases + our_bases ]
+  def generate_targets(self):
+    enemy_bases = [b.position for b in self.enemy_structures(BaseStructures)]
+    our_bases = list(self.owned_expansions.keys())
+    self.targets = [ p for p in self.expansion_locations.keys() if p not in enemy_bases + our_bases ]
