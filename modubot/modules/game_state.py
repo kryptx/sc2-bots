@@ -21,7 +21,7 @@ class GameStateTracker(BotModule):
       raise SurrenderedException("Surrendered")
 
     self.shared.optimism = optimism(
-      self.units.filter(lambda u: u.type_id not in [ UnitTypeId.PROBE, UnitTypeId.DRONE, UnitTypeId.SCV ]), (
+      self.units.ready.filter(lambda u: u.type_id not in [ UnitTypeId.PROBE, UnitTypeId.DRONE, UnitTypeId.SCV ]), (
       u for u in self.shared.known_enemy_units.values()
       if u.type_id not in [ UnitTypeId.PROBE, UnitTypeId.DRONE, UnitTypeId.SCV ]
     ))

@@ -47,6 +47,13 @@ class TrainingRequest():
     self.expense = unit_type
 
   async def fulfill(self, bot):
+    if bot.shared.warpgate_complete and self.unit_type in TRAIN_INFO[UnitTypeId.WARPGATE]:
+      pylon = bot.structures(UnitTypeId.PYLON).closest_to(bot.shared.rally_point)
+      pos = pylon.position.to2.random_on_distance([2, 5])
+      placement = await bot.find_placement(TRAIN_INFO[UnitTypeId.WARPGATE][self.unit_type]['ability'], pos, placement_step=1)
+      if placement:
+        return WarpInRequest(self.unit_type, placement, max(1, self.urgency))
+
     structure_id = list(UNIT_TRAINED_FROM[self.unit_type])
     # Handling warp-ins here has too many problems to count
     structure_id = next(s for s in structure_id if s != UnitTypeId.WARPGATE)

@@ -25,12 +25,12 @@ class ScoutingMission():
   def __init__(self, bot, unit_priority, retreat_while):
     self.bot = bot
     self.unit = None
-    self.retreat_until = None           # internal timer for backing off momentarily
-    self.retreat_while = retreat_while  # provided function to additionally restrict retreats
+    self.retreat_until = None             # internal timer for backing off momentarily
+    self.retreat_while = retreat_while    # provided function to additionally restrict retreats
     self.status = ScoutingMissionStatus.PENDING
     self.unit_priority = unit_priority
     self.is_lost = False
-    self.static_targets = True         # override to false for dynamic scouting missions
+    self.static_targets = True            # override to false for dynamic scouting missions
     self.targets = []
 
   def __getattr__(self, name):

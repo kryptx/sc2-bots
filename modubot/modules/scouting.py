@@ -4,12 +4,14 @@ import random
 import sc2
 from sc2 import Race
 from sc2.constants import *
-from sc2.units import Units
+from sc2.dicts.unit_trained_from import UNIT_TRAINED_FROM
 from sc2.position import Point2
+from sc2.units import Units
 
-from modubot.common import Urgency, WarpInRequest, TrainingRequest, StructureRequest, BaseStructures, list_diff, list_flatten
+from modubot.common import Urgency, TrainingRequest, StructureRequest, BaseStructures, list_diff, list_flatten
 from modubot.modules.module import BotModule
 from modubot.scouting.mission import ScoutingMissionStatus
+
 
 class ScoutManager(BotModule):
   def __init__(self, bot, missions=[], retreat_while=lambda scout: False):
@@ -37,7 +39,7 @@ class ScoutManager(BotModule):
     self.shared.scouts = self.units.tags_in(self.allocated)
 
     await self.evaluate_mission_status()    # make sure all the scouts are safe and on track
-    requests = self.build_robotics_units() + await self.build_gateway_units()
+    requests = self.request_needed_units()
     return requests
 
   @property
@@ -161,34 +163,17 @@ class ScoutManager(BotModule):
     enemies_that_could_hit_scout = enemies.filter(lambda e: (e.ground_dps > 5 or e.air_dps > 5) and e.target_in_range(scout, bonus_distance=bonus_range))
     return enemies_that_could_hit_scout
 
-  def build_robotics_units(self):
+  def request_needed_units(self):
     requests = []
-    numObservers = self.units(UnitTypeId.OBSERVER).amount
-
-    urgency = Urgency.MEDIUMLOW
-    if numObservers < 1:
+    active_missions = [ m for m in self.missions if m.status == ScoutingMissionStatus.ACTIVE ]
+    for mission in active_missions:
       urgency = Urgency.MEDIUM
-    if numObservers < 3:
-      requests.append(TrainingRequest(UnitTypeId.OBSERVER, urgency))
-      numObservers += 1
-
-    return requests
-
-  async def build_gateway_units(self):
-    requests = []
-    numAdepts = self.units(UnitTypeId.ADEPT).amount
-    if numAdepts >= 2:
-      return requests
-
-    if self.shared.warpgate_complete:
-      pos = self.structures(UnitTypeId.PYLON).closest_to(self.shared.rally_point).position.to2.random_on_distance([2, 5])
-      placement = await self.find_placement(AbilityId.TRAINWARP_ADEPT, pos, placement_step=1)
-      if not placement is None:
-        requests.append(WarpInRequest(UnitTypeId.ADEPT, placement, Urgency.HIGH))
-
-    else:
-      requests.append(TrainingRequest(UnitTypeId.ADEPT, Urgency.MEDIUM + 1 - numAdepts))
-
+      for unit_type in mission.unit_priority:
+        if mission.unit and mission.unit.type_id == unit_type:
+          break
+        if unit_type not in UNIT_TRAINED_FROM:
+          continue
+        requests.append(TrainingRequest(unit_type, max(1, urgency)))
     return requests
 
   def abort_adept_teleports(self):

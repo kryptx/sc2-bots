@@ -4,7 +4,7 @@ from sc2.constants import UpgradeId, UnitTypeId
 from sc2.dicts.unit_train_build_abilities import TRAIN_INFO
 
 from .module import BotModule
-from modubot.common import TrainingRequest, WarpInRequest, Urgency
+from modubot.common import TrainingRequest, Urgency
 
 class SimpleArmyBuilder(BotModule):
   def __init__(self, bot, get_priorities):
@@ -43,15 +43,7 @@ class SimpleArmyBuilder(BotModule):
 
     requests = []
     for selected_unit in unit_priorities:
-      if self.shared.warpgate_complete:
-        pos = pylon.position.to2.random_on_distance([2, 5])
-        placement = await self.find_placement(TRAIN_INFO[UnitTypeId.WARPGATE][selected_unit]['ability'], pos, placement_step=1)
-        if placement:
-          requests.append(WarpInRequest(selected_unit, placement, max(1, urgency)))
-        else:
-          self.log.warn(f"Could not find placement for {selected_unit}")
-      else:
-        requests.append(TrainingRequest(selected_unit, max(1, urgency)))
+      requests.append(TrainingRequest(selected_unit, max(1, urgency)))
       # each unit request is lower priority than the last
       urgency -= 1
 
