@@ -19,10 +19,10 @@ class AttackObjective(StrategicObjective):
     return min(20, int(enemy_units.filter(lambda u: not u.is_structure).amount / 2))
 
   async def retreat(self):
-    self.rendezvous = Point2.center([ self.bot.shared.rally_point, self.units.center if self.units.exists else self.bot.game_info.map_center ])
+    self.rendezvous = self.bot.game_info.map_center
     for retreating_unit in self.units:
       if retreating_unit.position.is_further_than(5, self.rendezvous):
-        self.retreat_unit(retreating_unit, Point2.center([ self.units.center, self.rendezvous ]))
+        self.retreat_unit(retreating_unit, self.rendezvous)
 
     if self.units.empty:
       return
@@ -30,7 +30,7 @@ class AttackObjective(StrategicObjective):
     grouped_fighters = self.units.closer_than(10, self.units.center)
     local_opt = optimism(grouped_fighters, self.enemies) if grouped_fighters.exists else 0
     if local_opt > 3 and grouped_fighters.amount >= self.enemies.amount:
-      print(f"Returning to active because local optimism is {local_opt}")
+      self.log(f"Returning to active because local optimism is {local_opt}")
       self.status = ObjectiveStatus.ACTIVE
       self.status_since = self.bot.time
     elif all(unit.position.is_closer_than(10, self.rendezvous) for unit in self.units):

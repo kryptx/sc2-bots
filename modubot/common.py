@@ -59,20 +59,21 @@ class TrainingRequest():
     structure_id = next(s for s in structure_id if s != UnitTypeId.WARPGATE)
     structures = bot.structures(structure_id)
 
+    if structures.exists:
+      requirement = TRAIN_INFO[structure_id][self.unit_type].get('requires_tech_building', None)
+      if requirement:
+        r_structures = bot.structures(requirement)
+        if r_structures.ready.empty:
+          # can't build it
+          if r_structures.empty and not bot.already_pending(requirement):
+            # ooh.
+            return StructureRequest(requirement, bot.planner, self.urgency)
+          return
+
     if structures.ready.filter(lambda s: not s.is_active).empty:
       if structure_id not in bot.limits or structures.amount + bot.already_pending(structure_id) < bot.limits[structure_id]:
         return StructureRequest(structure_id, bot.planner, self.urgency)
       return
-
-    requirement = TRAIN_INFO[structure_id][self.unit_type].get('requires_tech_building', None)
-    if requirement:
-      r_structures = bot.structures(requirement)
-      if r_structures.ready.empty:
-        # can't build it
-        if r_structures.empty and not bot.already_pending(requirement):
-          # ooh.
-          return StructureRequest(requirement, bot.planner, self.urgency)
-        return
 
     return structures.filter(lambda s: not s.is_active).first.train(self.unit_type)
 
