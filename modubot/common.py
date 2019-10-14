@@ -48,7 +48,7 @@ class TrainingRequest():
 
   async def fulfill(self, bot):
     if bot.shared.warpgate_complete and self.unit_type in TRAIN_INFO[UnitTypeId.WARPGATE]:
-      pylon = bot.structures(UnitTypeId.PYLON).closest_to(bot.shared.rally_point)
+      pylon = bot.structures(UnitTypeId.PYLON).ready.closest_to(bot.shared.rally_point)
       pos = pylon.position.to2.random_on_distance([2, 5])
       placement = await bot.find_placement(TRAIN_INFO[UnitTypeId.WARPGATE][self.unit_type]['ability'], pos, placement_step=1)
       if placement:
