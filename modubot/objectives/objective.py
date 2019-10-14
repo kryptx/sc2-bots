@@ -25,40 +25,41 @@ class StrategicObjective():
     self.units = Units([], bot)
     self.last_seen = bot.time
     self.enemies = self.find_enemies()
-    self.logger = logging.getLogger(f"ModuBot.{type(self)}.__name__")
+    self.log = logging.getLogger(f"ModuBot.{type(self).__name__}")
+
+  def __getattr__(self, name):
+    return getattr(self.bot, name)
 
   @property
   def target(self):
     raise NotImplementedError("You must extend this class and provide a target property")
 
-  def log(self, msg):
-    self.logger.info(f"{type(self).__name__} {msg}")
-
   def is_complete(self):
-    if self.bot.time - self.last_seen > 5:
-      self.log("completed: enemies have not been seen for 5 seconds")
+    if self.time - self.last_seen > 5:
+      self.log.info("completed: enemies have not been seen for 5 seconds")
       if self.status == ObjectiveStatus.ACTIVE:
         # any enemies still in self.enemies should be removed from the enemy army
         # there probably aren't many but they are clearly interfering with us at this point
-        self.log(f"objective was active; clearing {self.enemies.amount} tags from known enemies!")
+        self.log.info(f"objective was active; clearing {self.enemies.amount} tags from known enemies!")
         for enemy_tag in (e.tag for e in self.enemies):
-          self.bot.shared.known_enemy_units.pop(enemy_tag, None)
+          self.shared.known_enemy_units.pop(enemy_tag, None)
 
       return True
     return False
 
   def find_enemies(self):
-    return (Units(self.bot.shared.known_enemy_units.values(), self.bot) + self.bot.enemy_structures) \
-      .filter(lambda u: u.is_visible or not self.bot.is_visible(u.position))
+    return (Units(self.shared.known_enemy_units.values(), self.bot) + self.enemy_structures) \
+      .filter(lambda u: u.is_visible or not self.is_visible(u.position))
 
   def abort(self):
     self.status = ObjectiveStatus.RETREATING
-    self.status_since = self.bot.time
+    self.status_since = self.time
 
   async def tick(self):
+    self.log.info(f"Status: {self.status} | Units: {self.units.amount} | Enemies: {self.enemies.amount}")
     self.enemies = self.find_enemies()
-    if self.bot.enemy_units.tags_in(e.tag for e in self.enemies).exists:
-      self.last_seen = self.bot.time
+    if self.enemy_units.tags_in(e.tag for e in self.enemies).exists:
+      self.last_seen = self.time
     if self.status >= ObjectiveStatus.ALLOCATING:
       self.allocate()
     if self.status == ObjectiveStatus.STAGING:
@@ -76,13 +77,13 @@ class StrategicObjective():
   def stage(self):
     # override this if you want to stage units
     self.status = ObjectiveStatus.ACTIVE
-    self.status_since = self.bot.time
+    self.status_since = self.time
 
   def retreat_unit(self, unit, target):
     if unit.type_id == UnitTypeId.STALKER and unit.weapon_cooldown == 0:
-      self.bot.do(unit.attack(target))
+      self.do(unit.attack(target))
     else:
-      self.bot.do(unit.move(target))
+      self.do(unit.move(target))
 
   def minimum_units(self, enemy_units):
     return 0
@@ -91,14 +92,14 @@ class StrategicObjective():
     return self.bot.units(CombatUnits).amount
 
   def do_attack(self, unit):
-    self.bot.do(unit.attack(self.enemies.closest_to(self.target.position).position if self.enemies.exists else self.target.position))
+    self.do(unit.attack(self.enemies.closest_to(self.target.position).position if self.enemies.exists else self.target.position))
 
   async def micro(self):
     if self.units.empty:
       return
 
-    if self.bot.time - self.status_since > 2:
-      self.status_since = self.bot.time
+    if self.time - self.status_since > 2:
+      self.status_since = self.time
       for unit in self.units:
         self.do_attack(unit)
 
@@ -106,8 +107,8 @@ class StrategicObjective():
     cooling_down_units = near_target_units.filter(lambda u: u.weapon_cooldown > 0)
     if cooling_down_units.amount < near_target_units.amount / 2:
       for unit in cooling_down_units:
-        self.bot.do(unit.move(unit.position.towards(self.target, 2)))
-        self.bot.do(unit.attack(self.target.position, queue=True))
+        self.do(unit.move(unit.position.towards(self.target, 2)))
+        self.do(unit.attack(self.target.position, queue=True))
 
     nearby_enemies = Units(list({
       enemy_unit
@@ -117,11 +118,11 @@ class StrategicObjective():
     if nearby_enemies.exists:
       nearby_allies = self.units.closer_than(30, nearby_enemies.center)
       if nearby_allies.amount >= self.units.amount / 3 and \
-        self.bot.shared.optimism < 1.5 and optimism(nearby_allies, nearby_enemies) < 0.75:
+        self.shared.optimism < 1.5 and optimism(nearby_allies, nearby_enemies) < 0.75:
 
-        self.log(f"*****RETREATING***** {nearby_enemies.amount} enemies, {self.units.amount} units ({nearby_allies.amount} nearby)")
+        self.log.info(f"*****RETREATING***** {nearby_enemies.amount} enemies, {self.units.amount} units ({nearby_allies.amount} nearby)")
         self.status = ObjectiveStatus.RETREATING
-        self.status_since = self.bot.time
+        self.status_since = self.time
     return
 
   def allocate(self):
@@ -136,21 +137,21 @@ class StrategicObjective():
 
     still_needed = minimum_units - allocated_units
     still_wanted = optimum_units - allocated_units
-    usable_units = self.bot.unallocated(CombatUnits, self.urgency)
+    usable_units = self.unallocated(CombatUnits, self.urgency)
     if usable_units.amount >= still_needed:
       adding_units = set(unit.tag for unit in usable_units.closest_n_units(self.target.position, still_wanted))
-      self.bot.deallocate(adding_units)
+      self.deallocate(adding_units)
       self.allocated = self.allocated.union(adding_units)
       if len(self.allocated) >= minimum_units:
         may_proceed = True
 
     if may_proceed:
       if self.status == ObjectiveStatus.ALLOCATING:
-        # self.log("approved for staging")
+        # self.log.info("approved for staging")
         self.status = ObjectiveStatus.STAGING
-        self.status_since = self.bot.time
+        self.status_since = self.time
 
     self.units = self.bot.units.tags_in(self.allocated)
     # noisy, but possibly informative
-    # self.log(f"{self.units.amount} units allocated for {self.enemies.amount} known enemies")
+    # self.log.info(f"{self.units.amount} units allocated for {self.enemies.amount} known enemies")
     return

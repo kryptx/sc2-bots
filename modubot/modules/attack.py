@@ -17,7 +17,7 @@ class AttackBases(BotModule):
   async def on_unit_destroyed(self, unit):
     # first condition cannot be true unless attack_objective exists
     if unit in self.allocated and self.attack_objective.status == ObjectiveStatus.STAGING:
-      self.attack_objective.log("Upgrading to active because a unit was killed while staging")
+      self.attack_objective.log.info("Upgrading to active because a unit was killed while staging")
       self.attack_objective.status = ObjectiveStatus.ACTIVE
     self.allocated.discard(unit)
 

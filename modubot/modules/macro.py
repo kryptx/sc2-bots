@@ -9,6 +9,7 @@ class MacroManager(BotModule):
   def __init__(self, bot, worker_limit=75):
     super().__init__(bot)
     bot.shared.next_base_location = None
+    self.last_base_check = 0  # this is kinda costly
     self.worker_limit = worker_limit
 
   async def on_step(self, iteration):
@@ -74,29 +75,32 @@ class MacroManager(BotModule):
 
     vgs = self.get_empty_geysers(assimilators)
     if vgs:
-      for vg in vgs:
-        urgency = Urgency.HIGH if assimilators.exists else Urgency.VERYHIGH
-        gates = self.structures({ UnitTypeId.GATEWAY, UnitTypeId.WARPGATE })
-        if gates.amount < 2 and assimilators.amount >= gates.amount:
-          # keep the number of gateways ahead until there are 2 of each
-          urgency = Urgency.NONE
+      urgency = Urgency.HIGH if assimilators.exists else Urgency.VERYHIGH
+      gates = self.structures({ UnitTypeId.GATEWAY, UnitTypeId.WARPGATE })
+      if gates.amount < 2 and assimilators.amount >= gates.amount:
+        # keep the number of gateways ahead until there are 2 of each
+        urgency = Urgency.NONE
 
-        if urgency and not (self.already_pending(UnitTypeId.ASSIMILATOR) - self.structures(UnitTypeId.ASSIMILATOR).not_ready.amount):
-          requests.append(StructureRequest(UnitTypeId.ASSIMILATOR, self.planner, urgency, force_target=vgs[0]))
+      if urgency and not (self.already_pending(UnitTypeId.ASSIMILATOR) - self.structures(UnitTypeId.ASSIMILATOR).not_ready.amount):
+        requests.append(StructureRequest(UnitTypeId.ASSIMILATOR, self.planner, urgency, force_target=vgs[0]))
 
     return requests
 
   def maybe_expand(self, nodes, assimilators):
     requests = []
-    while (
-      not self.shared.next_base_location
-        or any(base.position.is_closer_than(1, self.shared.next_base_location)
-      for base in self.townhalls + self.enemy_structures(BaseStructures))
-    ):
-      self.shared.next_base_location = self.find_next_base()
+    # this does not have to happen very often
+    if not self.shared.next_base_location or self.time - self.last_base_check > 11:
+      self.last_base_check = self.time
+      while (
+        not self.shared.next_base_location
+          or any(base.position.is_closer_than(1, self.shared.next_base_location)
+        for base in self.townhalls + self.enemy_structures(BaseStructures))
+      ):
+        self.shared.next_base_location = self.find_next_base()
 
     if not self.shared.next_base_location:
       return requests
+
     destructables = self.destructables.filter(lambda d: d.position.is_closer_than(1.0, self.shared.next_base_location))
     if destructables.exists:
       for unit in self.units({ UnitTypeId.ZEALOT, UnitTypeId.STALKER, UnitTypeId.ARCHON }).idle:
