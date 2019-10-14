@@ -32,7 +32,7 @@ class AttackBases(BotModule):
         self.shared.victims = self.attack_objective.enemies
         return
 
-    if (self.supply_used > 196 or self.shared.optimism > 1.25) and not self.attack_objective:
+    if (self.supply_used > 196 or self.shared.optimism > 1.5) and not self.attack_objective:
       known_enemy_units = self.shared.known_enemy_units.values()
       enemy_bases = self.enemy_structures(BaseStructures)
       if enemy_bases.exists:

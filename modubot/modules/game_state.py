@@ -3,7 +3,7 @@ from sc2.constants import UnitTypeId
 from sc2.units import Units
 
 from .module import BotModule
-from modubot.common import optimism
+from modubot.common import optimism, is_worker
 
 class SurrenderedException(Exception):
   pass
@@ -21,10 +21,10 @@ class GameStateTracker(BotModule):
       raise SurrenderedException("Surrendered")
 
     self.shared.optimism = optimism(
-      self.units.ready.filter(lambda u: u.type_id not in [ UnitTypeId.PROBE, UnitTypeId.DRONE, UnitTypeId.SCV ]), (
-      u for u in self.shared.known_enemy_units.values()
-      if u.type_id not in [ UnitTypeId.PROBE, UnitTypeId.DRONE, UnitTypeId.SCV ]
-    ))
+      self.units.ready.filter(lambda u: not is_worker(u)),
+      (u for u in self.shared.known_enemy_units.values()
+      if not is_worker(u))
+    )
 
     if self.shared.optimism < 0.01 and not self.surrender_declared:
       self.surrender_declared = self.time

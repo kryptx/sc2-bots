@@ -204,7 +204,8 @@ def list_flatten(list_of_lists):
   return [item for sublist in list_of_lists for item in sublist]
 
 def optimism(units, enemy_units):
-  return (sum(u.ground_dps * (u.health + u.shield) * (2 if u.is_massive else 1) for u in units) + 300) / (sum(u.ground_dps * (u.health + u.shield) * (2 if u.is_massive else 1) for u in enemy_units) + 300)
+  return (sum(u.ground_dps * (u.health + u.shield) * (2 if u.is_massive else 1) for u in units) + 1000) /\
+         (sum(u.ground_dps * (u.health + u.shield) * (2 if u.is_massive else 1) for u in enemy_units) + 1000)
 
 def dps(units):
   return sum(u.ground_dps for u in units)

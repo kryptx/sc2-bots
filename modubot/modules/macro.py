@@ -62,7 +62,7 @@ class MacroManager(BotModule):
     requests = []
     # when a worker goes into an assimilator... the bot thinks it doesn't exist.
     numWorkers = self.workers.amount + assimilators.amount
-    if numWorkers < min(1 + len(nodes) * 2 + assimilators.amount * 3, self.worker_limit) and self.townhalls.ready.idle.exists:
+    if numWorkers < min(len(nodes) * 3 + assimilators.amount * 3, self.worker_limit) and self.townhalls.ready.idle.exists:
       requests.append(TrainingRequest(UnitTypeId.PROBE, Urgency.VERYHIGH))
     return requests
 
@@ -76,13 +76,7 @@ class MacroManager(BotModule):
     vgs = self.get_empty_geysers(assimilators)
     if vgs:
       urgency = Urgency.HIGH if assimilators.exists else Urgency.VERYHIGH
-      gates = self.structures({ UnitTypeId.GATEWAY, UnitTypeId.WARPGATE })
-      if gates.amount < 2 and assimilators.amount >= gates.amount:
-        # keep the number of gateways ahead until there are 2 of each
-        urgency = Urgency.NONE
-
-      if urgency and not (self.already_pending(UnitTypeId.ASSIMILATOR) - self.structures(UnitTypeId.ASSIMILATOR).not_ready.amount):
-        requests.append(StructureRequest(UnitTypeId.ASSIMILATOR, self.planner, urgency, force_target=vgs[0]))
+      requests.append(StructureRequest(UnitTypeId.ASSIMILATOR, self.planner, urgency, force_target=vgs[0]))
 
     return requests
 
