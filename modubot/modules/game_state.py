@@ -26,7 +26,7 @@ class GameStateTracker(BotModule):
       if not is_worker(u))
     )
 
-    if self.shared.optimism < 0.01 and not self.surrender_declared:
+    if self.shared.optimism < 0.02 and not self.surrender_declared:
       self.surrender_declared = self.time
       await self.chat_send("(gameheart)(gg)(gameheart)")
 

@@ -74,7 +74,8 @@ class MacroManager(BotModule):
       self.do(worker.gather(self.mineral_field.closest_to(worker)))
 
     vgs = self.get_empty_geysers(assimilators)
-    if vgs:
+    gates = self.structures({ UnitTypeId.GATEWAY, UnitTypeId.WARPGATE })
+    if vgs and (gates.amount > 2 or assimilators.amount < gates.amount):
       urgency = Urgency.HIGH if assimilators.exists else Urgency.VERYHIGH
       requests.append(StructureRequest(UnitTypeId.ASSIMILATOR, self.planner, urgency, force_target=vgs[0]))
 
@@ -143,7 +144,7 @@ class MacroManager(BotModule):
         nexus_urgency += 1
 
       if self.townhalls.amount == 1:
-        nexus_urgency += 1
+        nexus_urgency += 2
 
       requests.append(StructureRequest(UnitTypeId.NEXUS, planner=None, urgency=nexus_urgency, force_target=self.shared.next_base_location))
 

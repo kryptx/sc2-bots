@@ -31,10 +31,10 @@ class OptimismChatter(BotModule):
 
     enemy_fighters = self.enemy_units.filter(lambda u: u.type_id not in (UnitTypeId.PROBE, UnitTypeId.DRONE, UnitTypeId.SCV))
     if enemy_fighters.amount > 10:
-      if self.lowest_optimism_reported > 0.2 and self.shared.optimism < 0.2:
-        self.lowest_optimism_reported = 0.2
+      if self.lowest_optimism_reported > 0.3 and self.shared.optimism < 0.3:
+        self.lowest_optimism_reported = 0.3
         await self.chat_send("whoa... (scared) ")
 
-      if self.lowest_optimism_reported > 0.1 and self.shared.optimism < 0.1:
-        self.lowest_optimism_reported = 0.1
+      if self.lowest_optimism_reported > 0.15 and self.shared.optimism < 0.15:
+        self.lowest_optimism_reported = 0.15
         await self.chat_send("this is not good. (salty)")

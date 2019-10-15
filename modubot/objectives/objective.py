@@ -1,6 +1,7 @@
 import enum
 import itertools
 import logging
+import math
 
 from sc2.constants import UnitTypeId
 from sc2.position import Point2
@@ -13,6 +14,12 @@ class ObjectiveStatus(enum.IntFlag):
   STAGING = 2,      # Getting into position and well-arranged
   ACTIVE = 3,       # Attacking
   RETREATING = 4    # boo
+
+def median_position(positions=[]):
+  xes = sorted(pos.x for pos in positions)
+  ys = sorted(pos.y for pos in positions)
+  mid = int(len(positions) / 2)
+  return Point2([ xes[mid], ys[mid] ])
 
 class StrategicObjective():
   def __init__(self, bot, urgency, rendezvous=None):
@@ -105,7 +112,7 @@ class StrategicObjective():
 
     near_target_units = self.units.closer_than(30, self.target)
     cooling_down_units = near_target_units.filter(lambda u: u.weapon_cooldown > 0)
-    if cooling_down_units.amount < near_target_units.amount / 2:
+    if cooling_down_units.amount < near_target_units.amount / 3:
       for unit in cooling_down_units:
         self.do(unit.move(unit.position.towards(self.target, 2)))
         self.do(unit.attack(self.target.position, queue=True))
@@ -113,14 +120,13 @@ class StrategicObjective():
     nearby_enemies = Units(list({
       enemy_unit
       for (friendly_unit, enemy_unit) in itertools.product(self.units, self.enemies)
-      if enemy_unit.position.is_closer_than(8, friendly_unit)
+      if enemy_unit.position.is_closer_than(10, friendly_unit)
     }), self.bot)
     if nearby_enemies.exists:
-      nearby_allies = self.units.closer_than(30, nearby_enemies.center)
-      if nearby_allies.amount >= self.units.amount / 3 and \
-        self.shared.optimism < 1.5 and optimism(nearby_allies, nearby_enemies) < 0.75:
-
-        self.log.info(f"*****RETREATING***** {nearby_enemies.amount} enemies, {self.units.amount} units ({nearby_allies.amount} nearby)")
+      allies_center = median_position([u.position for u in self.units])
+      clustered_allies = self.units.closer_than(15, allies_center)
+      if optimism(clustered_allies, self.enemies) < 0.75:
+        self.log.info(f"*****RETREATING***** {nearby_enemies.amount} enemies, {self.units.amount} units ({clustered_allies.amount} near center)")
         self.status = ObjectiveStatus.RETREATING
         self.status_since = self.time
     return
