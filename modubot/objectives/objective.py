@@ -112,7 +112,7 @@ class StrategicObjective():
 
     near_target_units = self.units.closer_than(30, self.target)
     cooling_down_units = near_target_units.filter(lambda u: u.weapon_cooldown > 0)
-    if cooling_down_units.amount < near_target_units.amount / 3:
+    if cooling_down_units.amount < near_target_units.amount / 4:
       for unit in cooling_down_units:
         self.do(unit.move(unit.position.towards(self.target, 2)))
         self.do(unit.attack(self.target.position, queue=True))
