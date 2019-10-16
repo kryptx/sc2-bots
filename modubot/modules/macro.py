@@ -86,7 +86,7 @@ class MacroManager(BotModule):
     # this does not have to happen very often
     if not self.shared.next_base_location or self.time - self.last_base_check > 11:
       self.last_base_check = self.time
-      while (
+      if (
         not self.shared.next_base_location
           or any(base.position.is_closer_than(1, self.shared.next_base_location)
         for base in self.townhalls + self.enemy_structures(BaseStructures))
