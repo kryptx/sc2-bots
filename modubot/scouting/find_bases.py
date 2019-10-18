@@ -4,11 +4,11 @@ from modubot.common import UnitTypeId, BaseStructures
 from modubot.scouting.mission import ScoutingMission, ScoutingMissionStatus, identity
 
 class FindBasesMission(ScoutingMission):
-  def __init__(self, bot, unit_priority=[], retreat_while=lambda scout: False):
-    super().__init__(bot, unit_priority, retreat_while)
+  def __init__(self, bot, unit_priority=[], retreat_while=lambda scout: False, start_when=None):
+    if not start_when:
+      start_when = lambda: bot.time > 45
 
-  def prerequisite(self):
-    return self.time >= 40
+    super().__init__(bot, unit_priority, retreat_while, start_when)
 
   def generate_targets(self):
     self.targets = list(self.enemy_start_locations)

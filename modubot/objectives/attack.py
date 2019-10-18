@@ -21,8 +21,8 @@ class AttackObjective(StrategicObjective):
   async def retreat(self):
     self.rendezvous = self.shared.rally_point
     for retreating_unit in self.units:
-      if all(retreating_unit.position.is_further_than(10, enemy.position) for enemy in self.enemies):
-        self.allocated.discard(retreating_unit.tag)
+      # if all(retreating_unit.position.is_further_than(10, enemy.position) for enemy in self.enemies):
+      #   self.allocated.discard(retreating_unit.tag)
       if retreating_unit.position.is_further_than(10, self.rendezvous):
         self.retreat_unit(retreating_unit, self.rendezvous)
 
@@ -49,8 +49,8 @@ class AttackObjective(StrategicObjective):
     if not self.rendezvous:
       for attacking_unit in allocated_units:
         self.do(attacking_unit.attack(self.target.position))
-      if any(structure.position.is_closer_than(20, friendly) for (structure, friendly) in itertools.product(self.enemy_structures, allocated_units)):
-        front_units = allocated_units.filter(lambda friendly: self.enemy_structures.closer_than(20, friendly).exists)
+      if any(self.enemies.filter(lambda e: e.position.is_closer_than(12, unit)).amount > 1 for unit in self.units):
+        front_units = allocated_units.filter(lambda friendly: self.enemies.filter(lambda e: e.position.is_closer_than(12, friendly)).exists)
         next_units = allocated_units.tags_not_in(u.tag for u in front_units)
         next_unit = next_units.closest_to(front_units.center) if next_units.exists else front_units.random
         self.rendezvous = next_unit.position

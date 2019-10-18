@@ -144,7 +144,7 @@ class MacroManager(BotModule):
         nexus_urgency += 1
 
       if self.townhalls.amount == 1:
-        nexus_urgency += 2
+        nexus_urgency += 4
 
       requests.append(StructureRequest(UnitTypeId.NEXUS, planner=None, urgency=nexus_urgency, force_target=self.shared.next_base_location))
 

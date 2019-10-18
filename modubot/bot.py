@@ -132,11 +132,11 @@ class ModuBot(sc2.BotAI):
         continue
 
       can_afford = True
-      if cost.minerals > minerals:
+      if cost.minerals > 0 and cost.minerals > minerals:
         can_afford = False
         mineral_threshold = request.urgency
 
-      if cost.vespene > vespene:
+      if cost.vespene > 0 and cost.vespene > vespene:
         can_afford = False
         vespene_threshold = request.urgency
 
@@ -144,26 +144,24 @@ class ModuBot(sc2.BotAI):
         can_afford = False
         supply_threshold = request.urgency
 
-      if can_afford:
-        cost_deducted = False
-        if result or request.reserve_cost:
-          cost_deducted = True
-          minerals -= cost.minerals
-          vespene -= cost.vespene
-          supply -= supply_cost
+      cost_msg = 'cost not deducted'
+      if result or request.reserve_cost:
+        cost_msg = 'cost deducted'
+        minerals -= cost.minerals
+        vespene -= cost.vespene
+        supply -= supply_cost
 
-        # print(f"Fulfilling request for {request.expense}")
+      if can_afford:
         if not result:
           self.log_request_result(request, original_request,
-            "dependency already in progress" +
-            (" (cost deducted)" if cost_deducted else " (cost not deducted)")
+            f"dependency already in progress ({cost_msg})"
           )
           continue
 
         self.do(result)
         self.log_request_result(request, original_request, "️✔ Filled")
       else:
-        self.log_request_result(request, original_request, "️Can't afford")
+        self.log_request_result(request, original_request, f"️Can't afford ({cost_msg})")
 
   def bases_centroid(self):
     return Point2.center([base.position for base in self.townhalls])

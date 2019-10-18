@@ -6,12 +6,12 @@ from modubot.common import BaseStructures
 from modubot.scouting.mission import ScoutingMission, identity
 
 class WatchEnemyArmyMission(ScoutingMission):
-  def __init__(self, bot, unit_priority=[], retreat_while=lambda scout: False):
-    super().__init__(bot, unit_priority, retreat_while)
-    self.static_targets = False
+  def __init__(self, bot, unit_priority=[], retreat_while=lambda scout: False, start_when=None):
+    if not start_when:
+      start_when = lambda: self.shared.enemy_is_rushing != None
 
-  def prerequisite(self):
-    return self.shared.enemy_is_rushing != None
+    super().__init__(bot, unit_priority, retreat_while, start_when)
+    self.static_targets = False
 
   def generate_targets(self):
     # what combat units do we know about?

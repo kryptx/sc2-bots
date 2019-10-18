@@ -4,11 +4,11 @@ from modubot.common import BaseStructures
 from modubot.scouting.mission import ScoutingMission, identity
 
 class ExpansionHuntMission(ScoutingMission):
-  def __init__(self, bot, unit_priority=[], retreat_while=lambda scout: False):
-    super().__init__(bot, unit_priority, retreat_while)
+  def __init__(self, bot, unit_priority=[], retreat_while=lambda scout: False, start_when=None):
+    if not start_when:
+      start_when = lambda: self.enemy_structures.exists and self.time >= 120
 
-  def prerequisite(self):
-    return self.enemy_structures.exists and self.time >= 120
+    super().__init__(bot, unit_priority, retreat_while, start_when)
 
   def update_targets(self):
     super().update_targets()

@@ -1,14 +1,15 @@
 from sc2.constants import UnitTypeId
 
+from modubot.common import is_worker
 from modubot.scouting.mission import ScoutingMission, identity
 
 class SupportArmyMission(ScoutingMission):
-  def __init__(self, bot, unit_priority=[], retreat_while=lambda scout: False):
+  def __init__(self, bot, unit_priority=[], retreat_while=lambda scout: False, start_when=None):
+    if not start_when:
+      start_when = lambda: self.units.filter(lambda u: not is_worker(u)).exists
+
     super().__init__(bot, unit_priority, retreat_while)
     self.static_targets = False
-
-  def prerequisite(self):
-    return self.units.exists
 
   def generate_targets(self):
     # if we're defending

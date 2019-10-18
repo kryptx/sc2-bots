@@ -23,13 +23,8 @@ class SimpleArmyBuilder(BotModule):
       return
 
     unit_priorities = self.get_priorities()
-    pylon = pylons.closest_to(self.game_info.map_center)
     urgency = Urgency.LOW
 
-    if self.time < 240:
-      urgency += 2
-      if self.shared.enemy_is_rushing:
-        urgency += 2
     if self.shared.optimism < 1.1:
       urgency += 1
     if self.shared.optimism <= 1:

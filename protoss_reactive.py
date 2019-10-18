@@ -66,7 +66,8 @@ def build():
         missions=[
           FindBasesMission(bot,
             unit_priority=[ UnitTypeId.OBSERVER, UnitTypeId.ADEPT, UnitTypeId.PROBE ],
-            retreat_while=shield_is_not_full),
+            retreat_while=shield_is_not_full,
+            start_when=lambda: bot.townhalls.amount > 1),
           DetectCheeseMission(bot,
             unit_priority=[ UnitTypeId.PROBE ],
             retreat_while=shield_is_not_full),

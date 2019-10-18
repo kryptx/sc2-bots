@@ -22,7 +22,7 @@ async def identity(obj):
   return obj
 
 class ScoutingMission():
-  def __init__(self, bot, unit_priority, retreat_while):
+  def __init__(self, bot, unit_priority, retreat_while, start_when=lambda: True):
     self.bot = bot
     self.unit = None
     self.retreat_until = None             # internal timer for backing off momentarily
@@ -32,12 +32,10 @@ class ScoutingMission():
     self.is_lost = False
     self.static_targets = True            # override to false for dynamic scouting missions
     self.targets = []
+    self.start_when = start_when
 
   def __getattr__(self, name):
     return getattr(self.bot, name)
-
-  def prerequisite(self):
-    return True
 
   def update_targets(self):
     if not (self.static_targets and self.targets):
@@ -48,6 +46,10 @@ class ScoutingMission():
 
   def next_target(self):
     if self.targets:
+      if self.unit:
+        def distance_to_scout(target):
+          return target.distance_to(self.unit)
+        self.targets.sort(key=distance_to_scout)
       self.targets.pop(0)
     if not self.targets:
       self.generate_targets()
@@ -57,7 +59,7 @@ class ScoutingMission():
   def evaluate_mission_status(self):
     if self.status >= ScoutingMissionStatus.COMPLETE:
       return
-    if self.status == ScoutingMissionStatus.PENDING and self.prerequisite():
+    if self.status == ScoutingMissionStatus.PENDING and self.start_when():
       print("Setting scouting mission to active")
       self.status = ScoutingMissionStatus.ACTIVE
 

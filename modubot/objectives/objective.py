@@ -152,8 +152,7 @@ class StrategicObjective():
         may_proceed = True
 
     if may_proceed:
-      if self.status == ObjectiveStatus.ALLOCATING:
-        # self.log.info("approved for staging")
+      if self.status in [ ObjectiveStatus.ALLOCATING, ObjectiveStatus.RETREATING ]:
         self.status = ObjectiveStatus.STAGING
         self.status_since = self.time
 

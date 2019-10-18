@@ -36,14 +36,11 @@ PRODUCTION_STRUCTURES = {
 
 # For the purpose of this module, "cheese" is any aggression that will win against a fast expansion
 class DetectCheeseMission(ScoutingMission):
-  def __init__(self, bot, unit_priority=[], retreat_while=lambda scout: False):
-    super().__init__(bot, unit_priority, retreat_while)
+  def __init__(self, bot, unit_priority=[], retreat_while=lambda scout: False, start_when=None):
+    if not start_when:
+      start_when = lambda: bot.enemy_structures(BaseStructures).exists
 
-  def prerequisite(self):
-    if self.enemy_structures(BaseStructures).exists:
-      print("Starting Detect Cheese Mission")
-      return True
-    return False
+    super().__init__(bot, unit_priority, retreat_while, start_when)
 
   def evaluate_mission_status(self):
     super().evaluate_mission_status()
