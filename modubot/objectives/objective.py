@@ -102,6 +102,7 @@ class StrategicObjective():
     self.do(unit.attack(self.enemies.closest_to(self.target.position).position if self.enemies.exists else self.target.position))
 
   async def micro(self):
+    self.rendezvous = None
     if self.units.empty:
       return
 
@@ -152,7 +153,13 @@ class StrategicObjective():
         may_proceed = True
 
     if may_proceed:
-      if self.status in [ ObjectiveStatus.ALLOCATING, ObjectiveStatus.RETREATING ]:
+      if self.status == ObjectiveStatus.ALLOCATING:
+        self.status = ObjectiveStatus.STAGING
+        self.status_since = self.time
+
+      elif self.status == ObjectiveStatus.RETREATING and \
+        self.shared.optimism > 1.5 and \
+        self.units.closer_than(15, median_position([u.position for u in self.units])).amount > self.units.amount / 2:
         self.status = ObjectiveStatus.STAGING
         self.status_since = self.time
 
