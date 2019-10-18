@@ -46,15 +46,15 @@ class ScoutingMission():
 
   def next_target(self):
     if self.targets:
-      if self.unit:
-        def distance_to_scout(target):
-          return target.distance_to(self.unit)
-        self.targets.sort(key=distance_to_scout)
       self.targets.pop(0)
     if not self.targets:
       self.generate_targets()
     if not self.targets:
       self.status = ScoutingMissionStatus.COMPLETE
+    elif self.unit:
+      def distance_to_scout(target):
+        return target.distance_to(self.unit)
+      self.targets.sort(key=distance_to_scout)
 
   def evaluate_mission_status(self):
     if self.status >= ScoutingMissionStatus.COMPLETE:
