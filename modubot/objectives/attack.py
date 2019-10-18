@@ -19,12 +19,11 @@ class AttackObjective(StrategicObjective):
     return min(20, int(enemy_units.filter(lambda u: not u.is_structure and not is_worker(u)).amount / 2))
 
   async def retreat(self):
-    self.rendezvous = self.shared.rally_point
     for retreating_unit in self.units:
       # if all(retreating_unit.position.is_further_than(10, enemy.position) for enemy in self.enemies):
       #   self.allocated.discard(retreating_unit.tag)
-      if retreating_unit.position.is_further_than(10, self.rendezvous):
-        self.retreat_unit(retreating_unit, self.rendezvous)
+      if retreating_unit.position.is_further_than(10, self.shared.rally_point):
+        self.retreat_unit(retreating_unit, self.shared.rally_point)
 
   def stage(self):
     allocated_units = self.units
@@ -92,7 +91,7 @@ class AttackObjective(StrategicObjective):
       # They naturally get cancelled because they can't allocate sufficient units
       # Possibly in the future, enemies for attack objectives should exclude those in defense objectives
       # self.log.info("completed (cancelled): no units allocated")
-    elif self.status == ObjectiveStatus.RETREATING and all(unit.position.is_closer_than(15, self.rendezvous) for unit in self.units):
+    elif self.status == ObjectiveStatus.RETREATING and all(unit.position.is_closer_than(15, self.shared.rally_point) for unit in self.units):
       completed = True
       self.log.info("completed: we finished retreating")
     elif (self.enemy_structures + self.enemy_units).closer_than(10, self.target.position).empty:
