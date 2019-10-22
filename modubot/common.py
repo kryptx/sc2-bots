@@ -21,6 +21,12 @@ BaseStructures = {
   UnitTypeId.HIVE
 }
 
+def median_position(positions=[]):
+  xes = sorted(pos.x for pos in positions)
+  ys = sorted(pos.y for pos in positions)
+  mid = int(len(positions) / 2)
+  return Point2([ xes[mid], ys[mid] ])
+
 class Urgency(enum.IntFlag):
   NONE = 0,       # don't do this
   VERYLOW = 1,    # Totally fine if it never happens

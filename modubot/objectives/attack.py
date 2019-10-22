@@ -3,7 +3,7 @@ import itertools
 from sc2.constants import UnitTypeId
 from sc2.position import Point2
 
-from modubot.common import Urgency, optimism, is_worker
+from modubot.common import Urgency, optimism, is_worker, median_position
 from modubot.objectives.objective import StrategicObjective, ObjectiveStatus
 
 class AttackObjective(StrategicObjective):
@@ -46,13 +46,24 @@ class AttackObjective(StrategicObjective):
       return
 
     if not self.rendezvous:
+      middle = median_position([u.position for u in self.units])
+      if self.units.closer_than(15, middle).amount < self.units.amount * 0.75:
+        for attacking_unit in allocated_units:
+          self.retreat_unit(attacking_unit, middle)
+        return
+
       for attacking_unit in allocated_units:
-        self.do(attacking_unit.attack(self.target.position))
-      if any(self.enemies.filter(lambda e: e.position.is_closer_than(12, unit)).amount > 1 for unit in self.units):
-        front_units = allocated_units.filter(lambda friendly: self.enemies.filter(lambda e: e.position.is_closer_than(12, friendly)).exists)
-        next_units = allocated_units.tags_not_in(u.tag for u in front_units)
-        next_unit = next_units.closest_to(front_units.center) if next_units.exists else front_units.random
-        self.rendezvous = next_unit.position
+        nearby_enemies = self.enemies.filter(lambda e: e.position.is_closer_than(12, attacking_unit))
+        if nearby_enemies.amount > 1:
+          front_units = allocated_units.filter(lambda friendly: self.enemies.filter(lambda e: e.position.is_closer_than(12, friendly)).exists)
+          next_units = allocated_units.tags_not_in(u.tag for u in front_units)
+          next_unit = next_units.closest_to(front_units.center) if next_units.exists else front_units.random
+          self.rendezvous = next_unit.position
+        elif nearby_enemies.exists and attacking_unit.position.is_further_than(15, middle):
+          self.retreat_unit(attacking_unit, middle)
+        else:
+          self.do(attacking_unit.attack(self.target.position))
+
 
     if not self.rendezvous:
       return

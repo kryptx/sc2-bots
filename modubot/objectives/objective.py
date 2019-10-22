@@ -7,19 +7,13 @@ from sc2.constants import UnitTypeId
 from sc2.position import Point2
 from sc2.units import Units
 
-from modubot.common import optimism, is_worker
+from modubot.common import optimism, is_worker, median_position
 
 class ObjectiveStatus(enum.IntFlag):
   ALLOCATING = 1,   # Need more units
   STAGING = 2,      # Getting into position and well-arranged
   ACTIVE = 3,       # Attacking
   RETREATING = 4    # boo
-
-def median_position(positions=[]):
-  xes = sorted(pos.x for pos in positions)
-  ys = sorted(pos.y for pos in positions)
-  mid = int(len(positions) / 2)
-  return Point2([ xes[mid], ys[mid] ])
 
 class StrategicObjective():
   def __init__(self, bot, urgency, rendezvous=None):
