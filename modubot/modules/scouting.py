@@ -48,6 +48,10 @@ class ScoutManager(BotModule):
              for mission in self.missions
              if mission.unit and mission.status == ScoutingMissionStatus.ACTIVE }
 
+  @property
+  def urgency(self):
+    return Urgency.MEDIUMHIGH
+
   def get_scout(self, mission):
     if mission.unit:
       scouts = self.bot.units.tags_in([ mission.unit.tag ])

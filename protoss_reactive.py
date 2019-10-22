@@ -15,8 +15,16 @@ def army_priority(bot):
 
   def calculate_priorities():
     priority = [ UnitTypeId.STALKER ]
-    if getattr(bot.shared, 'warpgate_complete', False) or bot.townhalls.amount > 1 or bot.vespene > 500:
-      priority = sorted([ UnitTypeId.HIGHTEMPLAR, UnitTypeId.STALKER  ], key=unit_amount)
+    should_request_templar = False
+    if bot.structures(UnitTypeId.TEMPLARARCHIVE).ready.exists:
+      should_request_templar = True
+    elif bot.shared.optimism >= 1.2 and (getattr(bot.shared, 'warpgate_complete', False) or bot.townhalls.amount > 1):
+      should_request_templar = True
+    elif bot.vespene > 500:
+      should_request_templar = True
+
+    if should_request_templar:
+      priority = sorted([ UnitTypeId.HIGHTEMPLAR, UnitTypeId.STALKER ], key=unit_amount)
 
     priority.append(UnitTypeId.ZEALOT)
     bot.log.info(f"Returning unit priority {priority}")
@@ -29,13 +37,13 @@ def shield_is_not_full(unit):
 
 def build():
   bot = ModuBot(limits={
-      UnitTypeId.FORGE: 1,
-      UnitTypeId.CYBERNETICSCORE: 1,
-      UnitTypeId.ROBOTICSBAY: 1,
-      UnitTypeId.ROBOTICSFACILITY: 1,
-      UnitTypeId.TWILIGHTCOUNCIL: 1,
-      UnitTypeId.TEMPLARARCHIVE: 1,
-      UnitTypeId.GATEWAY: 3
+      UnitTypeId.FORGE: lambda: 1 if bot.townhalls.amount > 1 else 0,
+      UnitTypeId.CYBERNETICSCORE: lambda: 1,
+      UnitTypeId.ROBOTICSBAY: lambda: 1,
+      UnitTypeId.ROBOTICSFACILITY: lambda: 1,
+      UnitTypeId.TWILIGHTCOUNCIL: lambda: 1,
+      UnitTypeId.TEMPLARARCHIVE: lambda: 1,
+      UnitTypeId.GATEWAY: lambda: 3
   })
 
   bot.modules = [
@@ -50,9 +58,10 @@ def build():
       ArchonMaker(bot, max_energy=300),
       SupplyBufferer(bot),
       MacroManager(bot,
+        fast_expand=True,
         gas_urgency=lambda candidate_geysers:
           Urgency.NONE if not candidate_geysers
-            else Urgency.VERYHIGH if bot.structures(bot.shared.gas_structure).empty
+            else Urgency.VERYHIGH if bot.structures(bot.shared.gas_structure).empty and not bot.already_pending(bot.shared.gas_structure)
             else Urgency.HIGH if bot.structures({ UnitTypeId.GATEWAY, UnitTypeId.WARPGATE }).amount > 2 \
               or bot.structures(bot.shared.gas_structure).amount < bot.structures({ UnitTypeId.GATEWAY, UnitTypeId.WARPGATE }).amount
             else Urgency.NONE

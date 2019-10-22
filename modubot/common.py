@@ -65,7 +65,7 @@ class TrainingRequest():
           return
 
     if structures.ready.filter(lambda s: not s.is_active).empty:
-      if structure_id not in bot.limits or structures.amount + bot.already_pending(structure_id) < bot.limits[structure_id]:
+      if structure_id not in bot.limits or structures.amount + bot.already_pending(structure_id) < bot.limits[structure_id]():
         return StructureRequest(structure_id, bot.planner, self.urgency)
       return
 
@@ -168,7 +168,7 @@ class ResearchRequest():
     structure_id = UPGRADE_RESEARCHED_FROM[self.upgrade]
     structures = bot.structures(structure_id)
     if structures.ready.filter(lambda s: not s.is_active).empty:
-      if (structure_id not in bot.limits) or (structures.amount + bot.already_pending(structure_id) < bot.limits[structure_id]):
+      if (structure_id not in bot.limits) or (structures.amount + bot.already_pending(structure_id) < bot.limits[structure_id]()):
         return StructureRequest(structure_id, bot.planner, self.urgency)
       return
 

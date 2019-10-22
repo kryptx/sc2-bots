@@ -6,15 +6,16 @@ from modubot.common import list_flatten, BaseStructures, TrainingRequest, Struct
 from modubot.modules.module import BotModule
 
 class MacroManager(BotModule):
-  def __init__(self, bot, worker_limit=75, gas_urgency=None):
+  def __init__(self, bot, worker_limit=75, gas_urgency=None, fast_expand=False):
     super().__init__(bot)
     bot.shared.next_base_location = None
     self.last_base_check = 0  # this is kinda costly
     self.worker_limit = worker_limit
+    self.fast_expand = fast_expand
     # self.gates.amount > 2 or gas_structs.amount < gates.amount
     self.gas_urgency = gas_urgency if gas_urgency \
       else lambda geysers: (Urgency.NONE if not geysers
-        else Urgency.HIGH if bot.structures(bot.shared.gas_structure).exists
+        else Urgency.HIGH if bot.structures(bot.shared.gas_structure).exists or bot.already_pending(bot.shared.gas_structure)
         else Urgency.VERYHIGH)
 
   async def on_step(self, iteration):
@@ -142,7 +143,7 @@ class MacroManager(BotModule):
       if mineable < 4000:
         base_urgency += 1
 
-      if self.townhalls.amount == 1:
+      if self.townhalls.amount == 1 and self.fast_expand:
         base_urgency += 4
 
       requests.append(StructureRequest(self.shared.new_base, planner=None, urgency=base_urgency, force_target=self.shared.next_base_location))
