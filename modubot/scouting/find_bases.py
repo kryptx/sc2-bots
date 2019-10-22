@@ -18,7 +18,9 @@ class FindBasesMission(ScoutingMission):
     if self.status >= ScoutingMissionStatus.COMPLETE:
       return
 
-    enemy_bases = self.enemy_structures(BaseStructures)
+    enemy_bases = self.enemy_structures(BaseStructures).filter(lambda base:
+      any(location.is_closer_than(1, base.position) for location in self.enemy_start_locations))
+
     if enemy_bases.exists:
       print("Find Bases Mission Complete")
       self.status = ScoutingMissionStatus.COMPLETE
