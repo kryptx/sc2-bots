@@ -46,7 +46,7 @@ class AttackObjective(StrategicObjective):
       return
 
     if not self.rendezvous:
-      middle = median_position([u.position for u in self.units])
+      middle = median_position([u.position for u in self.units]) if self.units.exists else self.game_info.map_center
       if self.units.closer_than(15, middle).amount < self.units.amount * 0.75:
         for attacking_unit in allocated_units:
           self.retreat_unit(attacking_unit, middle)
@@ -63,7 +63,6 @@ class AttackObjective(StrategicObjective):
           self.retreat_unit(attacking_unit, middle)
         else:
           self.do(attacking_unit.attack(self.target.position))
-
 
     if not self.rendezvous:
       return
