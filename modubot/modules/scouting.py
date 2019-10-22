@@ -59,8 +59,8 @@ class ScoutManager(BotModule):
         break
 
       available_units = self.unallocated(unit_type)
-      if unit_type == UnitTypeId.PROBE:
-        available_units = available_units.filter(lambda probe: probe.is_idle or probe.is_collecting or probe.distance_to(mission.targets[0]) < 40)
+      if unit_type == self.shared.common_worker:
+        available_units = available_units.filter(lambda w: w.is_idle or w.is_collecting or w.distance_to(mission.targets[0]) < 40)
 
       if available_units.exists:
         if mission.unit:
@@ -73,13 +73,13 @@ class ScoutManager(BotModule):
     return mission.unit
 
   def release_scout(self, scout):
-    if scout.type_id == UnitTypeId.PROBE:
-      print("Releasing probe")
+    if scout.type_id == self.shared.common_worker:
+      print("Releasing worker")
       mineral_field = self.mineral_field.filter(lambda f: any(th.position.is_closer_than(15, f.position) for th in self.townhalls))
       if mineral_field.exists:
         self.do(scout.gather(mineral_field.random))
     else:
-      print("Releasing non-probe")
+      print("Releasing non-worker")
       self.do(scout.move(self.shared.rally_point))
 
   async def evaluate_mission_status(self):

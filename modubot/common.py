@@ -21,12 +21,6 @@ BaseStructures = {
   UnitTypeId.HIVE
 }
 
-CombatUnits = {
-  UnitTypeId.STALKER,
-  UnitTypeId.ARCHON,
-  UnitTypeId.ZEALOT
-}
-
 class Urgency(enum.IntFlag):
   NONE = 0,       # don't do this
   VERYLOW = 1,    # Totally fine if it never happens
@@ -112,10 +106,15 @@ class BasePlanner():
     self.plans = dict()
     return
 
+  def __getattr__(self, name):
+    return getattr(self.bot, name)
+
+  def may_place(self, structure_type):
+    return True
+
   def get_available_positions(self, structure_type):
     raise NotImplementedError("You must override this function")
 
-# this is very much still a PROTOSS structure request
 class StructureRequest():
   def __init__(self, structure_type, planner, urgency=Urgency.LOW, force_target=None, near=None):
     self.planner = planner
@@ -128,7 +127,7 @@ class StructureRequest():
 
   async def fulfill(self, bot):
     # print(f"fulfilling StructureRequest for {self.expense}, urgency {self.urgency}")
-    build_info = TRAIN_INFO[UnitTypeId.PROBE][self.structure_type]
+    build_info = TRAIN_INFO[bot.shared.common_worker][self.structure_type]
     if 'requires_tech_building' in build_info:
       requirement = build_info['requires_tech_building']
       r_structures = bot.structures(requirement)
@@ -137,34 +136,25 @@ class StructureRequest():
           return StructureRequest(requirement, self.planner, self.urgency)
         return
 
-    worker = bot.workers.filter(lambda w: w.is_idle or w.is_collecting)
-    if not worker.exists:
-      worker = bot.workers
+    workers = bot.workers.filter(lambda w: w.is_idle or w.is_collecting)
+    if not workers.exists:
+      workers = bot.workers
 
-    if not worker.exists or (bot.structures(UnitTypeId.PYLON).ready.empty and self.structure_type not in [UnitTypeId.PYLON, UnitTypeId.NEXUS]):
+    if not workers.exists or not bot.planner.may_place(self.structure_type):
       # womp womp
       return
 
     if self.force_target:
-      return worker.closest_to(self.force_target).build(self.structure_type, self.force_target)
+      return workers.closest_to(self.force_target).build(self.structure_type, self.force_target)
 
     targets = self.planner.get_available_positions(self.structure_type, near=self.near)
     for location in targets:
       can_build = await bot.can_place(self.structure_type, location)
       if can_build:
-        return worker.closest_to(location).build(self.structure_type, location)
+        return workers.closest_to(location).build(self.structure_type, location)
 
     print("Failed to build structure due to poor planning!")
-    if not bot.already_pending(UnitTypeId.PYLON):
-      targets = self.planner.get_available_positions(UnitTypeId.PYLON)
-      for location in targets:
-        can_build = await bot.can_place(UnitTypeId.PYLON, location)
-        if can_build:
-          print("-> Force-built pylon.")
-          return worker.closest_to(location).build(UnitTypeId.PYLON, location)
-      print("-> Failed to force-build pylon.")
-    else:
-      print("-> Pylon already pending.")
+    await bot.planner.increase_buildable_area(workers)
 
 class ResearchRequest():
   def __init__(self, upgrade, urgency):
@@ -184,17 +174,6 @@ class ResearchRequest():
 
     ability = RESEARCH_INFO[structure_id][self.upgrade]['ability']
     return structures.filter(lambda s: not s.is_active).first(ability)
-
-class ExpansionRequest():
-  def __init__(self, location, urgency):
-    self.reserve_cost = False
-    self.urgency = urgency
-    self.expense = UnitTypeId.NEXUS
-    self.location = location
-
-  async def fulfill(self, bot):
-    await bot.expand_now(location=self.location)
-    return
 
 def list_diff(first, second):
   second = set(second)

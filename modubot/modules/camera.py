@@ -25,7 +25,7 @@ class SpectatorCamera(BotModule):
         return
 
       # if we're building a new base
-      if self.already_pending(UnitTypeId.NEXUS) > 0 and self.structures(UnitTypeId.NEXUS).not_ready.empty:
+      if self.already_pending(self.shared.new_base) > 0 and self.structures(self.shared.new_base).not_ready.empty:
         await self._client.move_camera(self.shared.next_base_location)
         return
 

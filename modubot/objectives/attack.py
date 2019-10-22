@@ -73,12 +73,7 @@ class AttackObjective(StrategicObjective):
       self.status_since = self.time
 
     for attacking_unit in allocated_units:
-      if attacking_unit.type_id == UnitTypeId.STALKER:
-        self.do(attacking_unit.move(self.rendezvous.towards(self.target.position, -3)))
-      elif attacking_unit.type_id == UnitTypeId.ZEALOT:
-        self.do(attacking_unit.move(self.rendezvous.towards(self.target.position, 3)))
-      elif attacking_unit.type_id == UnitTypeId.ARCHON:
-        self.do(attacking_unit.move(self.rendezvous))
+      self.do(attacking_unit.move(self.rendezvous.towards(self.target.position, 3 - attacking_unit.ground_range)))
 
   def is_complete(self):
     completed = super().is_complete()

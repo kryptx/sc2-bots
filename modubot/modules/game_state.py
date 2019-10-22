@@ -1,5 +1,6 @@
 import sc2
 from sc2.constants import UnitTypeId
+from sc2 import Race
 from sc2.units import Units
 
 from .module import BotModule
@@ -14,6 +15,26 @@ class GameStateTracker(BotModule):
     self.surrender_declared = None
     bot.shared.known_enemy_units = dict()
     bot.shared.optimism = 1
+
+  async def on_start(self):
+    if self.race == Race.Terran:
+      self.shared.base_types = { UnitTypeId.COMMANDCENTER, UnitTypeId.PLANETARYFORTRESS, UnitTypeId.ORBITALCOMMAND }
+      self.shared.new_base = UnitTypeId.COMMANDCENTER
+      self.shared.gas_structure = UnitTypeId.REFINERY
+      self.shared.worker_types = { UnitTypeId.SCV, UnitTypeId.MULE }
+      self.shared.common_worker = UnitTypeId.SCV
+    elif self.race == Race.Zerg:
+      self.shared.base_types = { UnitTypeId.HATCHERY, UnitTypeId.LAIR, UnitTypeId.HIVE }
+      self.shared.new_base = UnitTypeId.HATCHERY
+      self.shared.gas_structure = UnitTypeId.EXTRACTOR
+      self.shared.worker_types = { UnitTypeId.DRONE }
+      self.shared.common_worker = UnitTypeId.DRONE
+    elif self.race == Race.Protoss:
+      self.shared.base_types = { UnitTypeId.NEXUS }
+      self.shared.new_base = UnitTypeId.NEXUS
+      self.shared.gas_structure = UnitTypeId.ASSIMILATOR
+      self.shared.worker_types = { UnitTypeId.PROBE }
+      self.shared.common_worker = UnitTypeId.PROBE
 
   async def on_step(self, iteration):
     if self.surrender_declared and self.time - self.surrender_declared > 5:

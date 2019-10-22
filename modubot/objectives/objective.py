@@ -7,7 +7,7 @@ from sc2.constants import UnitTypeId
 from sc2.position import Point2
 from sc2.units import Units
 
-from modubot.common import optimism, CombatUnits
+from modubot.common import optimism, is_worker
 
 class ObjectiveStatus(enum.IntFlag):
   ALLOCATING = 1,   # Need more units
@@ -87,7 +87,7 @@ class StrategicObjective():
     self.status_since = self.time
 
   def retreat_unit(self, unit, target):
-    if unit.type_id == UnitTypeId.STALKER and unit.weapon_cooldown == 0:
+    if unit.ground_range >= 5 and unit.weapon_cooldown == 0:
       self.do(unit.attack(target))
     else:
       self.do(unit.move(target))
@@ -96,7 +96,7 @@ class StrategicObjective():
     return 0
 
   def optimum_units(self, enemy_units):
-    return self.bot.units(CombatUnits).amount
+    return self.bot.units.filter(lambda u: not is_worker(u)).amount
 
   def do_attack(self, unit):
     self.do(unit.attack(self.enemies.closest_to(self.target.position).position if self.enemies.exists else self.target.position))
@@ -144,7 +144,7 @@ class StrategicObjective():
 
     still_needed = minimum_units - allocated_units
     still_wanted = optimum_units - allocated_units
-    usable_units = self.unallocated(CombatUnits, self.urgency)
+    usable_units = self.unallocated(urgency=self.urgency)
     if usable_units.amount >= still_needed:
       adding_units = set(unit.tag for unit in usable_units.closest_n_units(self.target.position, still_wanted))
       self.deallocate(adding_units)

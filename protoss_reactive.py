@@ -49,7 +49,14 @@ def build():
       RallyPointer(bot),
       ArchonMaker(bot, max_energy=300),
       SupplyBufferer(bot),
-      MacroManager(bot),
+      MacroManager(bot,
+        gas_urgency=lambda candidate_geysers:
+          Urgency.NONE if not candidate_geysers
+            else Urgency.VERYHIGH if bot.structures(bot.shared.gas_structure).empty
+            else Urgency.HIGH if bot.structures({ UnitTypeId.GATEWAY, UnitTypeId.WARPGATE }).amount > 2 \
+              or bot.structures(bot.shared.gas_structure).amount < bot.structures({ UnitTypeId.GATEWAY, UnitTypeId.WARPGATE }).amount
+            else Urgency.NONE
+      ),
       ChronoBooster(bot,
         find_structure=lambda: (
           bot.structures(UnitTypeId.FORGE).filter(lambda f: not f.is_idle).first

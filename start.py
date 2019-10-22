@@ -16,7 +16,7 @@ bot = build_bot()
 def main():
   sc2.run_game(sc2.maps.get(random.choice(all_maps)), [
     Bot(Race.Protoss, bot),
-    Computer(Race.Protoss, Difficulty.VeryHard, AIBuild.RandomBuild) # Macro, Power, Rush, Timing, Air, (RandomBuild)
+    Computer(Race.Zerg, Difficulty.VeryHard, AIBuild.RandomBuild) # Macro, Power, Rush, Timing, Air, (RandomBuild)
   ], realtime=False)
 
 if __name__ == '__main__':

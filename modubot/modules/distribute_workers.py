@@ -31,25 +31,25 @@ class WorkerDistributor(BotModule):
       ])
     )
 
-    workers_per_assimilator = 1 + min(2, int(self.workers.amount / acceptable_minerals.amount))
+    workers_per_gas = 1 + min(2, int(self.workers.amount / acceptable_minerals.amount))
 
-    # assimilators probably at bases that have been destroyed
-    bad_assimilators = self.structures(
-      UnitTypeId.ASSIMILATOR
+    # gas buildings probably at bases that have been destroyed
+    bad_geysers = self.structures(
+      self.shared.gas_structure
     ).filter(
       lambda a: all(ex.is_further_than(15, a) for ex in self.owned_expansions.keys())
                 or a.vespene_contents == 0
-                or a.assigned_harvesters > workers_per_assimilator
+                or a.assigned_harvesters > workers_per_gas
     )
 
-    # assimilators that don't have enough harvesters
-    needy_assimilators = self.structures(
-      UnitTypeId.ASSIMILATOR
+    # gas buildings that don't have enough harvesters
+    needy_geysers = self.structures(
+      self.shared.gas_structure
     ).ready.tags_not_in([
       a.tag
-      for a in bad_assimilators
+      for a in bad_geysers
     ]).filter(
-      lambda a: a.assigned_harvesters < workers_per_assimilator
+      lambda a: a.assigned_harvesters < workers_per_gas
     )
 
     # tag collections for easy selection and matching
@@ -63,25 +63,25 @@ class WorkerDistributor(BotModule):
     # anywhere else is strictly forbidden
     unacceptable_mineral_tags = [ f.tag for f in self.mineral_field.tags_not_in(acceptable_mineral_tags) ]
 
-    bad_workers = self.unallocated(UnitTypeId.PROBE).filter(lambda p:
+    bad_workers = self.unallocated(self.shared.worker_types).filter(lambda p:
       # Grab these suckers first
       p.is_idle or
       (p.is_gathering and p.orders[0].target in unacceptable_mineral_tags) or
-      (p.is_gathering and p.orders[0].target in bad_assimilators) or
+      (p.is_gathering and p.orders[0].target in bad_geysers) or
       p.orders[0].ability in [ AbilityId.ATTACK_ATTACKTOWARDS,
                                AbilityId.ATTACK_ATTACK,
                                AbilityId.ATTACK ]
     )
 
-    # up to N workers, where N is the number of surplus harvesters, from each nexus where there are any
+    # up to N workers, where N is the number of surplus harvesters, from each base where there are any
     # may not grab them all every time (it gets only the ones returning minerals), but it'll get enough
     excess_workers = Units(list_flatten([
         self.workers.filter(
-          lambda probe: probe.is_carrying_minerals and probe.orders and probe.orders[0].target == nex.tag
-        )[0:nex.surplus_harvesters] for nex in self.townhalls.filter(lambda nex: nex.surplus_harvesters > 0)
+          lambda w: w.is_carrying_minerals and w.orders and w.orders[0].target == base.tag
+        )[0:base.surplus_harvesters] for base in self.townhalls.filter(lambda base: base.surplus_harvesters > 0)
     ]), self)
 
-    # to fill up your first assimilator, you'll need these
+    # to fill up your first gas building, you'll need these
     mining_workers = self.workers.filter(lambda p:
       # if more are needed, this is okay too
       p.is_gathering and (p.orders[0].target in acceptable_mineral_tags or p.is_carrying_minerals)
@@ -97,10 +97,10 @@ class WorkerDistributor(BotModule):
       taken_workers += num
       return usable_workers[ taken_workers - num : taken_workers ]
 
-    for needy_assimilator in needy_assimilators:
-      workers = get_workers(workers_per_assimilator - needy_assimilator.assigned_harvesters)
+    for needy_geyser in needy_geysers:
+      workers = get_workers(workers_per_gas - needy_geyser.assigned_harvesters)
       for worker in workers:
-        self.do(worker.gather(needy_assimilator))
+        self.do(worker.gather(needy_geyser))
 
     if taken_workers < bad_workers.amount and acceptable_mineral_tags:
       remaining_bad_workers = get_workers(bad_workers.amount - taken_workers)

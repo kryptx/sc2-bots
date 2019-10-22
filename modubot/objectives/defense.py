@@ -20,7 +20,7 @@ class DefenseObjective(StrategicObjective):
     # get workers if needed
     mission_optimism = optimism(self.units, self.enemies)
     if mission_optimism < 1 and self.enemies.amount > 2:
-      nearby_workers = self.unallocated(UnitTypeId.PROBE).closer_than(20, self.enemies.center)
+      nearby_workers = self.unallocated(self.shared.worker_types).closer_than(20, self.enemies.center)
       if nearby_workers.exists:
         adding_units = set(worker.tag for worker in nearby_workers)
         self.deallocate(adding_units)

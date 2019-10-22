@@ -5,7 +5,7 @@ from sc2.constants import *
 from sc2.units import Units
 
 from .module import BotModule
-from modubot.common import BaseStructures, list_diff, list_flatten, retreat
+from modubot.common import BaseStructures, list_diff, list_flatten, retreat, is_worker
 
 all_effect_ids = [name for name, member in EffectId.__members__.items()]
 
@@ -42,7 +42,7 @@ class ProtossMicro(BotModule):
 
     destructables = self.destructables.filter(lambda d: d.position.is_closer_than(10, self.shared.rally_point))
     if destructables.exists:
-      for unit in self.units({ UnitTypeId.ZEALOT, UnitTypeId.STALKER, UnitTypeId.ARCHON }).idle:
+      for unit in self.units.filter(lambda u: not is_worker(u)).idle:
         self.do(unit.attack(destructables.first))
 
     for effect in self.state.effects:
@@ -56,5 +56,5 @@ class ProtossMicro(BotModule):
     if not self.shared.rally_point:
       return
 
-    for unit in self.unallocated({ UnitTypeId.ZEALOT, UnitTypeId.STALKER, UnitTypeId.ARCHON }).further_than(15, self.shared.rally_point):
+    for unit in self.unallocated().further_than(15, self.shared.rally_point):
       self.do(retreat(unit, self.shared.rally_point))

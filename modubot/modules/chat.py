@@ -2,7 +2,9 @@
 from git import Repo
 import sc2
 from sc2.constants import UnitTypeId
+
 from .module import BotModule
+from modubot.common import is_worker
 
 class OptimismChatter(BotModule):
   def __init__(self, bot):
@@ -29,7 +31,7 @@ class OptimismChatter(BotModule):
       self.highest_optimism_reported = 50
       await self.chat_send("-- Victory confidence 99% --")
 
-    enemy_fighters = self.enemy_units.filter(lambda u: u.type_id not in (UnitTypeId.PROBE, UnitTypeId.DRONE, UnitTypeId.SCV))
+    enemy_fighters = self.enemy_units.filter(lambda u: not is_worker(u))
     if enemy_fighters.amount > 10:
       if self.lowest_optimism_reported > 0.3 and self.shared.optimism < 0.3:
         self.lowest_optimism_reported = 0.3
