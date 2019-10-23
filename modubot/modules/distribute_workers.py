@@ -19,7 +19,7 @@ class WorkerDistributor(BotModule):
 
     self.last_distribute = self.time
 
-    # Kinda hard to gather anything without a nexus
+    # Kinda hard to gather anything without a base
     if not self.townhalls.ready.exists:
       return
 

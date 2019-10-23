@@ -55,9 +55,10 @@ class TrainingRequest():
         return WarpInRequest(self.unit_type, placement, max(1, self.urgency))
 
     structure_id = list(UNIT_TRAINED_FROM[self.unit_type])
+
     # Handling warp-ins here has too many problems to count
     structure_id = next(s for s in structure_id if s != UnitTypeId.WARPGATE)
-    structures = bot.structures(structure_id)
+    structures = bot.units(structure_id) if structure_id == UnitTypeId.LARVA else bot.structures(structure_id)
 
     if structures.exists:
       requirement = TRAIN_INFO[structure_id][self.unit_type].get('requires_tech_building', None)
@@ -67,12 +68,15 @@ class TrainingRequest():
           # can't build it
           if r_structures.empty and not bot.already_pending(requirement):
             # ooh.
-            return StructureRequest(requirement, bot.planner, self.urgency)
+            return StructureRequest(requirement, self.urgency)
           return
+
+      if structure_id == UnitTypeId.LARVA:
+        return structures.random(TRAIN_INFO[structure_id][self.unit_type]['ability'])
 
     if structures.ready.filter(lambda s: not s.is_active).empty:
       if structure_id not in bot.limits or structures.amount + bot.already_pending(structure_id) < bot.limits[structure_id]():
-        return StructureRequest(structure_id, bot.planner, self.urgency)
+        return StructureRequest(structure_id, self.urgency)
       return
 
     return structures.filter(lambda s: not s.is_active).first.train(self.unit_type)
@@ -93,7 +97,7 @@ class WarpInRequest():
         # can't build it
         if r_structures.empty and not bot.already_pending(requirement):
           # ooh.
-          return StructureRequest(requirement, bot.planner, self.urgency)
+          return StructureRequest(requirement, self.urgency)
         return
 
     warpgates = bot.structures(UnitTypeId.WARPGATE).ready
@@ -104,7 +108,7 @@ class WarpInRequest():
       return gate.warp_in(self.unit_type, self.location)
     in_progress = bot.already_pending(UnitTypeId.GATEWAY) + bot.already_pending(UnitTypeId.WARPGATE)
     if in_progress < 2:
-      return StructureRequest(UnitTypeId.GATEWAY, bot.planner, self.urgency)
+      return StructureRequest(UnitTypeId.GATEWAY, self.urgency)
 
 class BasePlanner():
   def __init__(self, bot):
@@ -121,9 +125,11 @@ class BasePlanner():
   def get_available_positions(self, structure_type):
     raise NotImplementedError("You must override this function")
 
+  def increase_buildable_area(self):
+    raise NotImplementedError("Your base planner could not find anywhere to put the structure. Implement the increase_buildable_area function in your base planner.")
+
 class StructureRequest():
-  def __init__(self, structure_type, planner, urgency=Urgency.LOW, force_target=None, near=None):
-    self.planner = planner
+  def __init__(self, structure_type, urgency=Urgency.LOW, force_target=None, near=None):
     self.structure_type = structure_type
     self.urgency = urgency
     self.expense = structure_type
@@ -132,6 +138,27 @@ class StructureRequest():
     self.reserve_cost = True
 
   async def fulfill(self, bot):
+    # short circuit for creep tumor spreading
+    # Assumes a module maintains a set of tags in `shared.unused_tumors`
+    if self.structure_type == UnitTypeId.CREEPTUMOR:
+      # first try to spread from an existing one
+      ready_tumors = bot.structures.tags_in(bot.shared.unused_tumors).ready
+      if ready_tumors.empty:
+        capable_queens = bot.units(UnitTypeId.QUEEN).filter(lambda q: q.energy > 30)
+        if capable_queens.exists:
+          target = bot.planner.queen_tumor_position()
+          if target:
+            bot.do(capable_queens.closest_to(target)(AbilityId.BUILD_CREEPTUMOR_QUEEN, target))
+        return
+
+      for tumor in ready_tumors:
+        tumor_abilities = await bot.get_available_abilities(tumor)
+        if AbilityId.BUILD_CREEPTUMOR_TUMOR in tumor_abilities:
+          target = bot.planner.tumor_tumor_position(tumor)
+          if target:
+            bot.do(tumor(AbilityId.BUILD_CREEPTUMOR_TUMOR, target))
+            bot.shared.unused_tumors.discard(tumor.tag)
+
     # print(f"fulfilling StructureRequest for {self.expense}, urgency {self.urgency}")
     build_info = TRAIN_INFO[bot.shared.common_worker][self.structure_type]
     if 'requires_tech_building' in build_info:
@@ -139,7 +166,7 @@ class StructureRequest():
       r_structures = bot.structures(requirement)
       if r_structures.ready.empty:
         if r_structures.empty and not bot.already_pending(requirement): # for this purpose only 1 is ever needed. limits can be ignored.
-          return StructureRequest(requirement, self.planner, self.urgency)
+          return StructureRequest(requirement, self.urgency)
         return
 
     workers = bot.workers.filter(lambda w: w.is_idle or w.is_collecting)
@@ -153,7 +180,7 @@ class StructureRequest():
     if self.force_target:
       return workers.closest_to(self.force_target).build(self.structure_type, self.force_target)
 
-    targets = self.planner.get_available_positions(self.structure_type, near=self.near)
+    targets = bot.planner.get_available_positions(self.structure_type, near=self.near)
     for location in targets:
       can_build = await bot.can_place(self.structure_type, location)
       if can_build:
@@ -175,7 +202,7 @@ class ResearchRequest():
     structures = bot.structures(structure_id)
     if structures.ready.filter(lambda s: not s.is_active).empty:
       if (structure_id not in bot.limits) or (structures.amount + bot.already_pending(structure_id) < bot.limits[structure_id]()):
-        return StructureRequest(structure_id, bot.planner, self.urgency)
+        return StructureRequest(structure_id, self.urgency)
       return
 
     ability = RESEARCH_INFO[structure_id][self.upgrade]['ability']

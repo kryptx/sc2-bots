@@ -23,6 +23,7 @@ class Upgrader(BotModule):
     requests = []
     for urgency in self.upgrade_sets.keys():
       for group in self.upgrade_sets[urgency]:
-        if not self.already_pending(group[0]):
+        print(group)
+        if not self.already_pending_upgrade(group[0]):
           requests.append(ResearchRequest(group[0], urgency))
     return requests

@@ -9,6 +9,7 @@ from sc2.position import Point2
 
 from modubot.modules.game_state import SurrenderedException
 from modubot.planners.protoss import ProtossBasePlanner
+from modubot.planners.zerg import ZergBasePlanner
 from modubot.common import Urgency, list_flatten, OptionsObject, is_worker
 
 def urgencyValue(req):
@@ -26,7 +27,7 @@ class ModuBot(sc2.BotAI):
     # Various info that's often needed
     self.shared.enemy_race = None
 
-    # we'll deal with this ourselves once the game starts
+    # we'll deal with this once the game starts
     self.planner = None
 
     # things a consumer should provide
@@ -40,6 +41,8 @@ class ModuBot(sc2.BotAI):
   async def on_start(self):
     if self.race == Race.Protoss:
       self.planner = ProtossBasePlanner(self)
+    elif self.race == Race.Zerg:
+      self.planner = ZergBasePlanner(self)
 
     for module in self.modules:
       await module.on_start()

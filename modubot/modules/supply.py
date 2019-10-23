@@ -19,7 +19,7 @@ class SupplyBufferer(BotModule):
     pylon_urgency = self.determine_pylon_urgency()
 
     if pylon_urgency:
-      requests.append(StructureRequest(UnitTypeId.PYLON, self.planner, pylon_urgency))
+      requests.append(StructureRequest(UnitTypeId.PYLON, pylon_urgency))
 
     return requests
 

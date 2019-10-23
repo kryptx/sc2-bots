@@ -20,11 +20,10 @@ class MacroManager(BotModule):
 
   async def on_step(self, iteration):
     gas_structs = self.structures(self.shared.gas_structure)
-    nexuses = self.townhalls
     nodes = self.get_mineable_nodes()
 
     requests = self.check_worker_health(nodes, gas_structs) \
-      + self.check_vespene_status(nexuses, gas_structs) \
+      + self.check_vespene_status(gas_structs) \
       + self.maybe_expand(nodes, gas_structs)
 
     return requests
@@ -69,10 +68,10 @@ class MacroManager(BotModule):
     # when a worker goes into a gas structure... the bot thinks it doesn't exist.
     numWorkers = self.workers.amount + gas_structs.amount
     if numWorkers < min(len(nodes) * 3 + gas_structs.amount * 3, self.worker_limit) and self.townhalls.ready.idle.exists:
-      requests.append(TrainingRequest(UnitTypeId.PROBE, Urgency.VERYHIGH))
+      requests.append(TrainingRequest(self.shared.common_worker, Urgency.VERYHIGH))
     return requests
 
-  def check_vespene_status(self, nexuses, gas_structs):
+  def check_vespene_status(self, gas_structs):
     requests = []
     # try returning workers that are gathering from a gas structure in progress
     not_ready_gas_struct_tags = [nra.tag for nra in gas_structs.not_ready]
@@ -82,7 +81,7 @@ class MacroManager(BotModule):
     vgs = self.get_empty_geysers(gas_structs)
     if vgs:
       urgency = self.gas_urgency(vgs)
-      requests.append(StructureRequest(self.shared.gas_structure, self.planner, urgency, force_target=vgs[0]))
+      requests.append(StructureRequest(self.shared.gas_structure, urgency, force_target=vgs[0]))
 
     return requests
 
@@ -146,7 +145,7 @@ class MacroManager(BotModule):
       if self.townhalls.amount == 1 and self.fast_expand:
         base_urgency += 4
 
-      requests.append(StructureRequest(self.shared.new_base, planner=None, urgency=base_urgency, force_target=self.shared.next_base_location))
+      requests.append(StructureRequest(self.shared.new_base, urgency=base_urgency, force_target=self.shared.next_base_location))
 
     return requests
 

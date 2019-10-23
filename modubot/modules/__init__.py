@@ -14,3 +14,6 @@ from .upgrade import Upgrader
 
 from .protoss.archons import ArchonMaker
 from .protoss.chronoboost import ChronoBooster
+
+from .zerg.creep import CreepSpreader
+from .zerg.larva import LarvaInjector
