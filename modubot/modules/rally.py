@@ -1,4 +1,5 @@
 from .module import BotModule
+from modubot.common import retreat
 
 class RallyPointer(BotModule):
   def __init__(self, bot):
@@ -7,6 +8,13 @@ class RallyPointer(BotModule):
 
   async def on_step(self, iteration):
     self.shared.rally_point = self.determine_rally_point()
+
+    if not self.shared.rally_point:
+      return
+
+    for unit in self.unallocated().further_than(15, self.shared.rally_point):
+      self.do(retreat(unit, self.shared.rally_point))
+
 
   def determine_rally_point(self):
     if self.townhalls.empty or self.townhalls.amount == 1:

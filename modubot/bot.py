@@ -102,12 +102,13 @@ class ModuBot(sc2.BotAI):
     while requests:
       request = requests.pop(0)
       original_request = request
-      result = request
       if not request.urgency:
         break
 
+      result = await request.fulfill(self)
+
       while hasattr(result, 'fulfill'):
-        # print(f"Replacing {type(request)} for {request.expense} with {type(result)} for {result.expense}")
+        self.log.info(f"Replacing {type(request)} for {request.expense} with {type(result)} for {result.expense}")
         request = result
         result = await request.fulfill(self)
 
@@ -143,7 +144,7 @@ class ModuBot(sc2.BotAI):
         can_afford = False
         vespene_threshold = request.urgency
 
-      if supply_cost > supply:
+      if supply_cost > 0 and supply_cost > supply:
         can_afford = False
         supply_threshold = request.urgency
 

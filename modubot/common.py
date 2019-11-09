@@ -47,21 +47,28 @@ class TrainingRequest():
     self.expense = unit_type
 
   async def fulfill(self, bot):
-    if bot.shared.warpgate_complete and self.unit_type in TRAIN_INFO[UnitTypeId.WARPGATE]:
+    if getattr(bot.shared, 'warpgate_complete', False) and self.unit_type in TRAIN_INFO[UnitTypeId.WARPGATE]:
       pylon = bot.structures(UnitTypeId.PYLON).ready.closest_to(bot.shared.rally_point)
       pos = pylon.position.to2.random_on_distance([2, 5])
       placement = await bot.find_placement(TRAIN_INFO[UnitTypeId.WARPGATE][self.unit_type]['ability'], pos, placement_step=1)
       if placement:
         return WarpInRequest(self.unit_type, placement, max(1, self.urgency))
 
-    structure_id = list(UNIT_TRAINED_FROM[self.unit_type])
+    # yes, this can be abbreviated pretty easily, but it comes at a great cost to readability
+    creating_type = self.unit_type
+    eligible_creators = set(UNIT_TRAINED_FROM[creating_type])
+    eligible_creators.discard(UnitTypeId.WARPGATE)
 
-    # Handling warp-ins here has too many problems to count
-    structure_id = next(s for s in structure_id if s != UnitTypeId.WARPGATE)
-    structures = bot.units(structure_id) if structure_id == UnitTypeId.LARVA else bot.structures(structure_id)
+    while UnitTypeId.LARVA not in eligible_creators and bot.units(eligible_creators).empty and bot.structures(eligible_creators).empty:
+      creating_type = list(eligible_creators)[0]
+      eligible_creators = [ s for s in list(UNIT_TRAINED_FROM[creating_type]) if s != UnitTypeId.WARPGATE ]
 
-    if structures.exists:
-      requirement = TRAIN_INFO[structure_id][self.unit_type].get('requires_tech_building', None)
+    creators = bot.units(eligible_creators) if bot.units(eligible_creators).exists else bot.structures(eligible_creators)
+
+    if creators.exists:
+      creator_type = creators.first.type_id
+      bot.log.info(f"Checking tech requirements to create {creating_type}")
+      requirement = TRAIN_INFO[creator_type][creating_type].get('requires_tech_building', None)
       if requirement:
         r_structures = bot.structures(requirement)
         if r_structures.ready.empty:
@@ -70,16 +77,21 @@ class TrainingRequest():
             # ooh.
             return StructureRequest(requirement, self.urgency)
           return
+    else:
+      creator_type = list(eligible_creators)[0]
 
-      if structure_id == UnitTypeId.LARVA:
-        return structures.random(TRAIN_INFO[structure_id][self.unit_type]['ability'])
+    if creators.ready.filter(lambda c: not c.is_active).exists:
+      return creators.ready.filter(lambda c: not c.is_active).random(TRAIN_INFO[creator_type][creating_type]['ability'])
 
-    if structures.ready.filter(lambda s: not s.is_active).empty:
-      if structure_id not in bot.limits or structures.amount + bot.already_pending(structure_id) < bot.limits[structure_id]():
-        return StructureRequest(structure_id, self.urgency)
+    if creators.ready.empty:
+      if creator_type != UnitTypeId.LARVA and (
+        creator_type not in bot.limits or
+        creators.amount + bot.already_pending(creator_type) < bot.limits[creator_type]()
+      ):
+        return StructureRequest(creator_type, self.urgency)
       return
 
-    return structures.filter(lambda s: not s.is_active).first.train(self.unit_type)
+    return creators.ready.first.train(self.unit_type)
 
 class WarpInRequest():
   def __init__(self, unit_type, location, urgency):
@@ -160,6 +172,14 @@ class StructureRequest():
             bot.shared.unused_tumors.discard(tumor.tag)
 
     # print(f"fulfilling StructureRequest for {self.expense}, urgency {self.urgency}")
+    if bot.shared.common_worker not in UNIT_TRAINED_FROM[self.structure_type]:
+      # this structure is "morphed" from another structure (Lair, Hive, Orbital Command, Planetary Fortress, Greater Spire, etc)
+      structure_root = list(UNIT_TRAINED_FROM[self.structure_type])[0]
+      if bot.structures(structure_root).ready.empty:
+        return StructureRequest(structure_root, self.urgency)
+      else:
+        return bot.structures(structure_root).first(TRAIN_INFO[structure_root][self.structure_type]['ability'])
+
     build_info = TRAIN_INFO[bot.shared.common_worker][self.structure_type]
     if 'requires_tech_building' in build_info:
       requirement = build_info['requires_tech_building']
@@ -181,6 +201,7 @@ class StructureRequest():
       return workers.closest_to(self.force_target).build(self.structure_type, self.force_target)
 
     targets = bot.planner.get_available_positions(self.structure_type, near=self.near)
+    print(f"{len(targets)} found for {self.structure_type}")
     for location in targets:
       can_build = await bot.can_place(self.structure_type, location)
       if can_build:
@@ -229,7 +250,7 @@ def retreat(unit, target):
   return unit.attack(target.position) if unit.weapon_cooldown == 0 else unit.move(target.position)
 
 def is_worker(unit):
-  return unit.type_id in [ UnitTypeId.PROBE, UnitTypeId.SCV, UnitTypeId.DRONE, UnitTypeId.MULE ]
+  return unit.type_id in [ UnitTypeId.PROBE, UnitTypeId.SCV, UnitTypeId.DRONE, UnitTypeId.MULE, UnitTypeId.OVERLORD ]
 
 class OptionsObject(object):
   pass

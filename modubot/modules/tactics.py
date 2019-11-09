@@ -52,9 +52,3 @@ class ProtossMicro(BotModule):
             self.do(unit.move(unit.position.towards(position, -2)))
       # if effect.id not in all_effect_ids:
         # print(f"UNRECOGNIZED EFFECT ID {effect.id}")
-
-    if not self.shared.rally_point:
-      return
-
-    for unit in self.unallocated().further_than(15, self.shared.rally_point):
-      self.do(retreat(unit, self.shared.rally_point))

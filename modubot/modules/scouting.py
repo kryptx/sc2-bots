@@ -177,6 +177,8 @@ class ScoutManager(BotModule):
           break
         if unit_type not in UNIT_TRAINED_FROM:
           continue
+        if self.already_pending(unit_type):
+          continue
         requests.append(TrainingRequest(unit_type, max(1, urgency)))
     return requests
 

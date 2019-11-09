@@ -10,18 +10,8 @@ class SimpleArmyBuilder(BotModule):
   def __init__(self, bot, get_priorities):
     super().__init__(bot)
     self.get_priorities = get_priorities
-    bot.shared.warpgate_complete = False
-
-  async def on_upgrade_complete(self, upgrade_id):
-    if upgrade_id == UpgradeId.WARPGATERESEARCH:
-      self.shared.warpgate_complete = True
 
   async def on_step(self, iteration):
-    pylons = self.structures(UnitTypeId.PYLON).ready
-    if pylons.empty:
-      # not gonna be getting any units...
-      return
-
     unit_priorities = self.get_priorities()
     urgency = Urgency.VERYLOW
 

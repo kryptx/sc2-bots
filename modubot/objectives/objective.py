@@ -120,7 +120,7 @@ class StrategicObjective():
     if nearby_enemies.exists:
       allies_center = median_position([u.position for u in self.units])
       clustered_allies = self.units.closer_than(15, allies_center)
-      if optimism(clustered_allies, self.enemies) < 0.75:
+      if optimism(clustered_allies, self.enemies) < 0.75 and self.supply_used < 180:
         self.log.info(f"*****RETREATING***** {nearby_enemies.amount} enemies, {self.units.amount} units ({clustered_allies.amount} near center)")
         self.status = ObjectiveStatus.RETREATING
         self.status_since = self.time

@@ -23,18 +23,21 @@ class GameStateTracker(BotModule):
       self.shared.gas_structure = UnitTypeId.REFINERY
       self.shared.worker_types = { UnitTypeId.SCV, UnitTypeId.MULE }
       self.shared.common_worker = UnitTypeId.SCV
+      self.shared.supply_type = UnitTypeId.SUPPLYDEPOT
     elif self.race == Race.Zerg:
       self.shared.base_types = { UnitTypeId.HATCHERY, UnitTypeId.LAIR, UnitTypeId.HIVE }
       self.shared.new_base = UnitTypeId.HATCHERY
       self.shared.gas_structure = UnitTypeId.EXTRACTOR
       self.shared.worker_types = { UnitTypeId.DRONE }
       self.shared.common_worker = UnitTypeId.DRONE
+      self.shared.supply_type = UnitTypeId.OVERLORD
     elif self.race == Race.Protoss:
       self.shared.base_types = { UnitTypeId.NEXUS }
       self.shared.new_base = UnitTypeId.NEXUS
       self.shared.gas_structure = UnitTypeId.ASSIMILATOR
       self.shared.worker_types = { UnitTypeId.PROBE }
       self.shared.common_worker = UnitTypeId.PROBE
+      self.shared.supply_type = UnitTypeId.PYLON
 
   async def on_step(self, iteration):
     if self.surrender_declared and self.time - self.surrender_declared > 5:

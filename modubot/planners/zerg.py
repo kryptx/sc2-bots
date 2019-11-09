@@ -32,7 +32,7 @@ _TUMOR_OFFSETS = [
 
 crawler_positions = [
   # RED
-  [ Point2([ 2.5, 5.5 ]) ],
+  [ Point2([ 3.5, 9.5 ]) ],
   # YELLOW
   [ Point2([ 11.5, 1.5 ]),
     Point2([ 11.5, 3.5 ]),
@@ -53,7 +53,8 @@ crawler_positions = [
 # STRUCTURE POSITIONS ARE CENTERED
 structure_positions = [
   # RED
-  [ Point2([ 3, 11 ])],
+  [ Point2([ 3, 4 ]),
+    Point2([ 3, 7 ])],
   # YELLOW
   [ ],
   # CORAL BLUE
@@ -73,13 +74,13 @@ structure_positions = [
     Point2([ 14, 2 ]) ]
 ]
 
-def identity(point, size=2):
+def identity(point):
   return point
-def rotate_right(point, size=2):
+def rotate_right(point):
   return Point2([ point.y, -point.x ])
-def rotate_left(point, size=2):
+def rotate_left(point):
   return Point2([ -point.y, point.x ])
-def flip_both(point, size=2):
+def flip_both(point):
   return Point2([ -point.x, -point.y ])
 
 mutators = [ identity, rotate_left, rotate_right, flip_both ]
@@ -125,10 +126,11 @@ class ZergBasePlanner(BasePlanner):
     for mutate in mutators:
       for i in range(len(crawler_positions)):
         if all(self.can_place_small(mutate(pos) + base.position, base_terrain_height) for pos in crawler_positions[i]) and \
-           all(self.can_place_structure(mutate(pos, 3) + base.position, base_terrain_height) for pos in structure_positions[i]):
+           all(self.can_place_structure(mutate(pos) + base.position, base_terrain_height) for pos in structure_positions[i]):
           plan.small_positions += [ mutate(pos) + base.position for pos in crawler_positions[i]]
-          plan.large_positions += [ mutate(pos, 3) + base.position for pos in structure_positions[i]]
+          plan.large_positions += [ mutate(pos) + base.position for pos in structure_positions[i]]
 
+    self.bot.log.info(f"Returning crawler positions {plan.small_positions} and structure positions {plan.large_positions} ")
     return plan
 
   def get_available_positions(self, structure_type, near=None):
@@ -148,11 +150,11 @@ class ZergBasePlanner(BasePlanner):
     bases = self.bot.townhalls
     tumors = self.bot.structures({ UnitTypeId.CREEPTUMOR })
     tumor_candidates = [
-      Point2([ p.x + offset.x, p.y + offset.y ])
+      p.position + offset
       for (p, offset) in itertools.product(bases, _TUMOR_OFFSETS)
-      if self.bot.in_placement_grid(Point2([ p.x + offset.x, p.y + offset.y ]))
-      and self.bot.has_creep(Point2([ p.x + offset.x, p.y + offset.y ]))
-      and tumors.closer_than(2, Point2([ p.x + offset.x, p.y + offset.y ])).empty
+      if self.bot.in_placement_grid(p.position + offset)
+      and self.bot.has_creep(p.position + offset)
+      and tumors.closer_than(2, p.position + offset).empty
     ]
     return tumor_candidates[0] if tumor_candidates else None
 
@@ -160,11 +162,11 @@ class ZergBasePlanner(BasePlanner):
     tp = tumor.position
     tumors = self.bot.structures({ UnitTypeId.CREEPTUMOR })
     tumor_candidates = [
-      Point2([ tp.x + offset.x, tp.y + offset.y ])
+      tp + offset
       for offset in _TUMOR_OFFSETS
-      if self.bot.in_placement_grid(Point2([ tp.x + offset.x, tp.y + offset.y ]))
-      and self.bot.has_creep(Point2([ tp.x + offset.x, tp.y + offset.y ]))
-      and tumors.closer_than(2, Point2([ tp.x + offset.x, tp.y + offset.y ])).empty
+      if self.bot.in_placement_grid(tp + offset)
+      and self.bot.has_creep(tp + offset)
+      and tumors.closer_than(2, tp + offset).empty
     ]
     return tumor_candidates[0] if tumor_candidates else None
 
@@ -174,16 +176,16 @@ class ZergBasePlanner(BasePlanner):
       p
       for p in list_flatten([ p.small_positions for p in self.plans.values() ])
       if p not in existing_structures
-      and all(self.bot.has_creep(Point2([ int(p.x + offset.x), int(p.y + offset.y) ])) for offset in _2X2_OFFSETS)
+      and all(self.bot.has_creep(p + offset) for offset in _2X2_OFFSETS)
     ]
     random.shuffle(acceptable_positions)
     return [p for p in acceptable_positions if not self.structures.closer_than(1.0, p).exists]
 
   def _get_large_positions(self, near):
-    acceptable_positions = self.plans[near.tag].structure_positions if near else list_flatten([ p.structure_positions for p in self.plans.values() ])
+    acceptable_positions = self.plans[near.tag].large_positions if near else list_flatten([ p.large_positions for p in self.plans.values() ])
     return [
       p
       for p in acceptable_positions
-      if all(self.bot.has_creep(Point2([ int(p.x + offset.x), int(p.y + offset.y) ])) for offset in _3X3_OFFSETS)
+      if all(self.bot.has_creep(p + offset) for offset in _3X3_OFFSETS)
       and not self.structures.closer_than(1.0, p).exists
     ]

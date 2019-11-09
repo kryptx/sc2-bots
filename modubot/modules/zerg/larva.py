@@ -6,10 +6,21 @@ from modubot.modules.module import BotModule
 class LarvaInjector(BotModule):
   def __init__(self, bot):
     super().__init__(bot)
+    self.queens = set()
+
+  @property
+  def allocated(self):
+    return self.queens
+
+  @property
+  def urgency(self):
+    return Urgency.HIGH
 
   async def on_step(self, iteration):
     requests = []
+    self.queens = self.queens.union({ q.tag for q in self.unallocated(UnitTypeId.QUEEN, self.urgency) })
     queens = self.units(UnitTypeId.QUEEN)
+
     bases = self.structures(self.shared.base_types)
     queen_urgency = Urgency.NONE
     if queens.amount < bases.amount:
@@ -28,6 +39,8 @@ class LarvaInjector(BotModule):
 
       base_with_closest_queen = max(needy_bases, key=distance_to_closest_queen)
       selected_queen = ready_queens.closest_to(base_with_closest_queen)
-      self.do(selected_queen(AbilityId.EFFECT_INJECTLARVA))
+      self.do(selected_queen(AbilityId.EFFECT_INJECTLARVA, base_with_closest_queen))
       needy_bases = needy_bases.filter(lambda b: b != base_with_closest_queen)
       ready_queens = ready_queens.filter(lambda q: q != selected_queen)
+
+    return requests
