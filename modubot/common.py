@@ -77,21 +77,17 @@ class TrainingRequest():
             # ooh.
             return StructureRequest(requirement, self.urgency)
           return
+      if creators.ready.exists and creators.ready.filter(lambda c: not c.is_active).exists:
+        return creators.ready.filter(lambda c: not c.is_active).random(TRAIN_INFO[creator_type][creating_type]['ability'])
+
     else:
       creator_type = list(eligible_creators)[0]
-
-    if creators.ready.filter(lambda c: not c.is_active).exists:
-      return creators.ready.filter(lambda c: not c.is_active).random(TRAIN_INFO[creator_type][creating_type]['ability'])
-
-    if creators.ready.empty:
       if creator_type != UnitTypeId.LARVA and (
         creator_type not in bot.limits or
         creators.amount + bot.already_pending(creator_type) < bot.limits[creator_type]()
       ):
         return StructureRequest(creator_type, self.urgency)
       return
-
-    return creators.ready.first.train(self.unit_type)
 
 class WarpInRequest():
   def __init__(self, unit_type, location, urgency):

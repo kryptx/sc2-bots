@@ -46,11 +46,11 @@ def build():
       MacroManager(bot, gas_urgency=lambda geysers: gas_priority(bot)),
       ScoutManager(bot,
         missions=[
-          FindBasesMission(bot, unit_priority=[ UnitTypeId.ZERGLING, UnitTypeId.DRONE ], start_when=lambda: bot.townhalls.amount > 1),
+          FindBasesMission(bot, unit_priority=[ UnitTypeId.OVERLORD ], start_when=lambda: True),
           DetectCheeseMission(bot, unit_priority=[ UnitTypeId.ZERGLING, UnitTypeId.DRONE ]),
           ExpansionHuntMission(bot, unit_priority=[ UnitTypeId.ZERGLING, UnitTypeId.ROACH ]),
-          ExpansionHuntMission(bot, unit_priority=[ UnitTypeId.OVERLORD ]),
-          ExpansionHuntMission(bot, unit_priority=[ UnitTypeId.OVERLORD ]),
+          ExpansionHuntMission(bot, unit_priority=[ UnitTypeId.OVERLORD ], start_when=lambda: True),
+          ExpansionHuntMission(bot, unit_priority=[ UnitTypeId.OVERLORD ], start_when=lambda: True),
           WatchEnemyArmyMission(bot, unit_priority=[ UnitTypeId.ZERGLING ]),
           WatchEnemyArmyMission(bot, unit_priority=[ UnitTypeId.OVERLORD ]),
           SupportArmyMission(bot, unit_priority=[ UnitTypeId.OVERSEER ])
@@ -58,8 +58,13 @@ def build():
       SimpleArmyBuilder(bot, get_priorities=army_priority(bot)),
       Upgrader(bot,
         upgrade_sets={
+          Urgency.MEDIUMHIGH: [
+            [ UpgradeId.ZERGLINGMOVEMENTSPEED ]
+          ],
           Urgency.MEDIUM: [
-            [ UpgradeId.GLIALRECONSTITUTION ]
+            [ UpgradeId.GLIALRECONSTITUTION ],
+            [ UpgradeId.EVOLVEGROOVEDSPINES,
+              UpgradeId.EVOLVEMUSCULARAUGMENTS ],
           ],
           Urgency.MEDIUMLOW: [
             [ UpgradeId.ZERGMISSILEWEAPONSLEVEL1,
@@ -68,7 +73,8 @@ def build():
               UpgradeId.ZERGGROUNDARMORSLEVEL2,
               UpgradeId.ZERGMISSILEWEAPONSLEVEL3,
               UpgradeId.ZERGGROUNDARMORSLEVEL3 ],
-            [ UpgradeId.OVERLORDSPEED ]
+            [ UpgradeId.OVERLORDSPEED ],
+            [ UpgradeId.ZERGLINGATTACKSPEED ]
           ]
         }
       )

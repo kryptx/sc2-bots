@@ -170,6 +170,7 @@ class ScoutManager(BotModule):
   def request_needed_units(self):
     requests = []
     active_missions = [ m for m in self.missions if m.status == ScoutingMissionStatus.ACTIVE ]
+    filled = set()
     for mission in active_missions:
       urgency = Urgency.MEDIUM
       for unit_type in mission.unit_priority:
@@ -177,8 +178,9 @@ class ScoutManager(BotModule):
           break
         if unit_type not in UNIT_TRAINED_FROM:
           continue
-        if self.already_pending(unit_type):
+        if unit_type in filled or self.already_pending(unit_type):
           continue
+        filled.add(unit_type)
         requests.append(TrainingRequest(unit_type, max(1, urgency)))
     return requests
 

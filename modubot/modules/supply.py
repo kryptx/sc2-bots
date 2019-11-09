@@ -33,12 +33,13 @@ class SupplyBufferer(BotModule):
     return requests
 
   def determine_supply_urgency(self):
-    if self.supply_cap < 200 and not self.already_pending(self.shared.supply_type):
-      if self.supply_left <= 0:
+    if self.supply_cap < 200:
+      already_building = self.already_pending(self.shared.supply_type)
+      if self.supply_left <= 0 and not already_building:
         return Urgency.EXTREME
-      elif self.supply_left < self.desired_supply_buffer:
+
+      projected_supply_left = self.supply_left + (already_building * 8)
+      if self.desired_supply_buffer > projected_supply_left:
         return Urgency.HIGH
-      elif self.supply_left < self.desired_supply_buffer * 1.5:
-        return Urgency.LOW
 
     return Urgency.NONE
