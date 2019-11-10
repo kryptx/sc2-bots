@@ -106,4 +106,8 @@ class AttackObjective(StrategicObjective):
     return completed
 
   def do_attack(self, unit):
-    self.do(unit.attack((self.enemy_units + self.enemy_structures).closest_to(self.target).position))
+    targets = self.enemy_units + self.enemy_structures
+    if targets.exists:
+      self.do(unit.attack(targets.closest_to(self.target).position))
+    else:
+      self.do(unit.attack(self.target))

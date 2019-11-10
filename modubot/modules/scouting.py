@@ -8,7 +8,7 @@ from sc2.dicts.unit_trained_from import UNIT_TRAINED_FROM
 from sc2.position import Point2
 from sc2.units import Units
 
-from modubot.common import Urgency, TrainingRequest, BaseStructures, list_diff, list_flatten
+from modubot.common import Urgency, BuildRequest, BaseStructures, list_diff, list_flatten
 from modubot.modules.module import BotModule
 from modubot.scouting.mission import ScoutingMissionStatus
 
@@ -181,7 +181,7 @@ class ScoutManager(BotModule):
         if unit_type in filled or self.already_pending(unit_type):
           continue
         filled.add(unit_type)
-        requests.append(TrainingRequest(unit_type, max(1, urgency)))
+        requests.append(BuildRequest(unit_type, max(1, urgency)))
     return requests
 
   def abort_adept_teleports(self):

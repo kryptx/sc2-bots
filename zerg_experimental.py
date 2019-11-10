@@ -19,13 +19,38 @@ def army_priority(bot):
 
   return calculate_priorities
 
-def gas_priority(bot):
-  if bot.already_pending(UnitTypeId.EXTRACTOR):
-    return Urgency.NONE
-  elif bot.structures(UnitTypeId.EXTRACTOR).amount < bot.townhalls.amount / 2:
-    return Urgency.HIGH
-  else:
-    return Urgency.VERYLOW
+def gas_urgency(bot):
+  def compute_gas_priority(geysers):
+    if bot.already_pending(UnitTypeId.EXTRACTOR):
+      return Urgency.NONE
+    elif bot.structures(UnitTypeId.EXTRACTOR).amount < bot.townhalls.amount / 2:
+      return Urgency.HIGH
+    else:
+      return Urgency.VERYLOW
+  return compute_gas_priority
+
+def worker_urgency(bot):
+  def compute_urgency():
+    urgency = Urgency.VERYHIGH
+
+    if bot.shared.optimism < 1:
+      urgency -= 6
+    elif bot.shared.optimism < 0.95:
+      urgency -= 7
+    elif bot.shared.optimism < 0.9:
+      urgency -= 8
+    elif bot.shared.optimism < 0.85:
+      urgency -= 9
+    elif bot.shared.optimism < 0.8:
+      urgency -= 10
+    # elif bot.shared.optimism < 0.75:
+    #   urgency -= 8
+    # elif bot.shared.optimism < 0.7:
+    #   urgency -= 9
+
+    return urgency
+
+  return compute_urgency
 
 def build():
   bot = ModuBot(limits={
@@ -33,11 +58,12 @@ def build():
       UnitTypeId.EVOLUTIONCHAMBER: lambda: 2,
       UnitTypeId.SPAWNINGPOOL: lambda: 1,
       UnitTypeId.HYDRALISKDEN: lambda: 1,
+      UnitTypeId.OVERSEER: lambda: 2
   })
 
   bot.modules = [
       GameStateTracker(bot),
-      OptimismChatter(bot),
+      # OptimismChatter(bot),
       SpectatorCamera(bot),
       WorkerDistributor(bot),
       CreepSpreader(bot),
@@ -46,7 +72,7 @@ def build():
       DefendBases(bot),
       RallyPointer(bot),
       SupplyBufferer(bot, compute_buffer=lambda bot: 2 + bot.townhalls.amount * 4),
-      MacroManager(bot, gas_urgency=lambda geysers: gas_priority(bot)),
+      MacroManager(bot, gas_urgency=gas_urgency(bot), worker_urgency=worker_urgency(bot), fast_expand=True),
       ScoutManager(bot,
         missions=[
           FindBasesMission(bot, unit_priority=[ UnitTypeId.OVERLORD ], start_when=lambda: True),
@@ -55,7 +81,6 @@ def build():
           ExpansionHuntMission(bot, unit_priority=[ UnitTypeId.OVERLORD ], start_when=lambda: True),
           ExpansionHuntMission(bot, unit_priority=[ UnitTypeId.OVERLORD ], start_when=lambda: True),
           WatchEnemyArmyMission(bot, unit_priority=[ UnitTypeId.ZERGLING ]),
-          WatchEnemyArmyMission(bot, unit_priority=[ UnitTypeId.OVERLORD ]),
           SupportArmyMission(bot, unit_priority=[ UnitTypeId.OVERSEER ])
         ]),
       SimpleArmyBuilder(bot, get_priorities=army_priority(bot)),

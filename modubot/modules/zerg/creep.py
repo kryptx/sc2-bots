@@ -1,6 +1,6 @@
 from sc2.constants import UnitTypeId, BuffId, AbilityId
 
-from modubot.common import TrainingRequest, StructureRequest, Urgency
+from modubot.common import BuildRequest, Urgency
 from modubot.modules.module import BotModule
 
 class CreepSpreader(BotModule):
@@ -15,12 +15,12 @@ class CreepSpreader(BotModule):
       await self.find_unused_tumors()
 
     if self.shared.unused_tumors:
-      return [ StructureRequest(UnitTypeId.CREEPTUMOR, Urgency.HIGH) ]
+      return [ BuildRequest(UnitTypeId.CREEPTUMOR, Urgency.HIGH) ]
 
     ready_queens = self.units(UnitTypeId.QUEEN).idle.filter(lambda q: q.energy > 40)
     engorged_queens = ready_queens.filter(lambda q: q.energy > 180)
     if engorged_queens.exists or (ready_queens.exists and len(self.shared.unused_tumors) < 5):
-      return [ StructureRequest(UnitTypeId.CREEPTUMOR, Urgency.HIGH) ]
+      return [ BuildRequest(UnitTypeId.CREEPTUMOR, Urgency.HIGH) ]
 
   async def find_unused_tumors(self):
     all_tumors = self.structures(UnitTypeId.CREEPTUMORBURROWED)

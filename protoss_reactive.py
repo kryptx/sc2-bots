@@ -48,7 +48,7 @@ def build():
 
   bot.modules = [
       GameStateTracker(bot),
-      OptimismChatter(bot),
+      # OptimismChatter(bot),
       SpectatorCamera(bot),
       WorkerDistributor(bot),
       AttackBases(bot),

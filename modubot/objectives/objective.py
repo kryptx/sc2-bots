@@ -139,12 +139,19 @@ class StrategicObjective():
     still_needed = minimum_units - allocated_units
     still_wanted = optimum_units - allocated_units
     usable_units = self.unallocated(urgency=self.urgency)
-    if usable_units.amount >= still_needed:
-      adding_units = set(unit.tag for unit in usable_units.closest_n_units(self.target.position, still_wanted))
-      self.deallocate(adding_units)
-      self.allocated = self.allocated.union(adding_units)
-      if len(self.allocated) >= minimum_units:
-        may_proceed = True
+    preferred_units = usable_units.filter(lambda u: u.can_attack_both)
+    adding_units = set()
+
+    if preferred_units.amount >= still_needed:
+      adding_units = set(unit.tag for unit in preferred_units.closest_n_units(self.target.position, still_wanted))
+    elif usable_units.amount >= still_needed:
+      adding_units = set(preferred_units)
+      adding_units.update(usable_units.closest_n_units(self.target.position, still_wanted))
+
+    self.deallocate(adding_units)
+    self.allocated = self.allocated.union(adding_units)
+    if len(self.allocated) >= minimum_units:
+      may_proceed = True
 
     if may_proceed:
       if self.status == ObjectiveStatus.ALLOCATING:

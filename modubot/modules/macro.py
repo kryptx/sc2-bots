@@ -2,16 +2,17 @@ from sc2.constants import UnitTypeId, AbilityId
 from sc2.position import Point2
 from sc2.units import Units
 
-from modubot.common import list_flatten, BaseStructures, TrainingRequest, StructureRequest, Urgency, is_worker
+from modubot.common import list_flatten, BaseStructures, BuildRequest, Urgency, is_worker
 from modubot.modules.module import BotModule
 
 class MacroManager(BotModule):
-  def __init__(self, bot, worker_limit=75, gas_urgency=None, fast_expand=False):
+  def __init__(self, bot, worker_limit=75, gas_urgency=None, worker_urgency=lambda: Urgency.VERYHIGH, fast_expand=False):
     super().__init__(bot)
     bot.shared.next_base_location = None
     self.last_base_check = 0  # this is kinda costly
     self.worker_limit = worker_limit
     self.fast_expand = fast_expand
+    self.worker_urgency = worker_urgency
     # self.gates.amount > 2 or gas_structs.amount < gates.amount
     self.gas_urgency = gas_urgency if gas_urgency \
       else lambda geysers: (Urgency.NONE if not geysers
@@ -68,7 +69,7 @@ class MacroManager(BotModule):
     # when a worker goes into a gas structure... the bot thinks it doesn't exist.
     numWorkers = self.workers.amount + gas_structs.amount
     if numWorkers < min(len(nodes) * 3 + gas_structs.amount * 3, self.worker_limit) and self.townhalls.ready.idle.exists:
-      requests.append(TrainingRequest(self.shared.common_worker, Urgency.VERYHIGH))
+      requests.append(BuildRequest(self.shared.common_worker, self.worker_urgency()))
     return requests
 
   def check_vespene_status(self, gas_structs):
@@ -81,7 +82,7 @@ class MacroManager(BotModule):
     vgs = self.get_empty_geysers(gas_structs)
     if vgs:
       urgency = self.gas_urgency(vgs)
-      requests.append(StructureRequest(self.shared.gas_structure, urgency, force_target=vgs[0]))
+      requests.append(BuildRequest(self.shared.gas_structure, urgency, force_target=vgs[0]))
 
     return requests
 
@@ -145,7 +146,7 @@ class MacroManager(BotModule):
       if self.townhalls.amount == 1 and self.fast_expand:
         base_urgency += 4
 
-      requests.append(StructureRequest(self.shared.new_base, urgency=base_urgency, force_target=self.shared.next_base_location))
+      requests.append(BuildRequest(self.shared.new_base, urgency=base_urgency, force_target=self.shared.next_base_location))
 
     return requests
 

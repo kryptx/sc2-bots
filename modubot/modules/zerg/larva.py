@@ -1,6 +1,6 @@
 from sc2.constants import UnitTypeId, BuffId, AbilityId
 
-from modubot.common import TrainingRequest, StructureRequest, Urgency
+from modubot.common import BuildRequest, Urgency
 from modubot.modules.module import BotModule
 
 class LarvaInjector(BotModule):
@@ -21,17 +21,18 @@ class LarvaInjector(BotModule):
     self.queens = self.queens.union({ q.tag for q in self.unallocated(UnitTypeId.QUEEN, self.urgency) })
     queens = self.units(UnitTypeId.QUEEN)
 
-    bases = self.structures(self.shared.base_types)
+    bases = self.townhalls
     queen_urgency = Urgency.NONE
-    if queens.amount < bases.amount:
+    queen_count = queens.amount + self.already_pending(UnitTypeId.QUEEN)
+    if queen_count < bases.amount:
       queen_urgency = Urgency.HIGH
     elif queens.amount < bases.amount + 1:
       queen_urgency = Urgency.LOW
 
-    requests.append(TrainingRequest(UnitTypeId.QUEEN, queen_urgency))
+    requests.append(BuildRequest(UnitTypeId.QUEEN, queen_urgency))
 
-    ready_queens = self.units(UnitTypeId.QUEEN).filter(lambda q: q.energy > 25)
-    needy_bases = self.structures(self.shared.base_types).filter(lambda s: not s.has_buff(BuffId.QUEENSPAWNLARVATIMER))
+    ready_queens = self.units(UnitTypeId.QUEEN).idle.filter(lambda q: q.energy > 25)
+    needy_bases = self.townhalls.filter(lambda s: not s.has_buff(BuffId.QUEENSPAWNLARVATIMER))
 
     for i in range(min(needy_bases.amount, ready_queens.amount)):
       def distance_to_closest_queen(base):

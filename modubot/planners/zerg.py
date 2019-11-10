@@ -134,6 +134,8 @@ class ZergBasePlanner(BasePlanner):
     return plan
 
   def get_available_positions(self, structure_type, near=None):
+    if structure_type == UnitTypeId.HATCHERY:
+      return []
     # common code handles juggling creep tumors between queens and tumors
     for base_tag in list(self.plans.keys()):
       if base_tag not in [ base.tag for base in self.townhalls ]:

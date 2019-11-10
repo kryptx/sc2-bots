@@ -7,8 +7,6 @@ from sc2.units import Units
 from .module import BotModule
 from modubot.common import BaseStructures, list_diff, list_flatten, retreat, is_worker
 
-all_effect_ids = [name for name, member in EffectId.__members__.items()]
-
 # Note: This does a little more than micro, and parts could work for other races.
 # allowing it for now in the name of finishing the refactor.
 class ProtossMicro(BotModule):
@@ -50,5 +48,3 @@ class ProtossMicro(BotModule):
         for position in effect.positions:
           for unit in self.units.closer_than(4, position):
             self.do(unit.move(unit.position.towards(position, -2)))
-      # if effect.id not in all_effect_ids:
-        # print(f"UNRECOGNIZED EFFECT ID {effect.id}")

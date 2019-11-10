@@ -1,8 +1,9 @@
 import logging
+import random
 import sc2
 
 from sc2 import Race
-from sc2.constants import UnitTypeId
+from sc2.constants import UnitTypeId, UpgradeId
 from sc2.unit_command import UnitCommand
 from sc2.units import Units
 from sc2.position import Point2
@@ -19,7 +20,8 @@ def urgencyValue(req):
 class ModuBot(sc2.BotAI):
 
   def __init__(self, modules=[], limits=dict(), log_level=logging.INFO):
-    self.log = logging.getLogger('ModuBot')
+    rand = random.randint(100000,999999)
+    self.log = logging.getLogger(f"ModuBot-{rand}")
     self.log.setLevel(log_level)
     self.shared = OptionsObject()  # just a generic object
     self.shared.optimism = 1       # Because the linter is an asshole
@@ -68,6 +70,8 @@ class ModuBot(sc2.BotAI):
       await module.on_building_construction_complete(unit)
 
   async def on_upgrade_complete(self, upgrade_id):
+    if upgrade_id == UpgradeId.WARPGATERESEARCH:
+      self.shared.warpgate_complete = True
     for module in self.modules:
       await module.on_upgrade_complete(upgrade_id)
 
@@ -144,8 +148,8 @@ class ModuBot(sc2.BotAI):
         supply_threshold = request.urgency
 
       cost_msg = 'cost not deducted'
-      if result or request.reserve_cost:
-        cost_msg = 'cost deducted'
+      if result or isinstance(request.expense, UnitTypeId):
+        cost_msg = 'real cost deducted'
         minerals -= max(cost.minerals, 0)
         vespene -= max(cost.vespene, 0)
         supply -= max(supply_cost, 0)
