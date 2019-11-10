@@ -147,12 +147,12 @@ class StructureRequest():
 
   async def fulfill(self, bot):
     # short circuit for creep tumor spreading
-    # Assumes a module maintains a set of tags in `shared.unused_tumors`
+    # Assumes a module periodically adds a set of tags to `shared.unused_tumors` (not every frame)
     if self.structure_type == UnitTypeId.CREEPTUMOR:
       # first try to spread from an existing one
-      ready_tumors = bot.structures.tags_in(bot.shared.unused_tumors).ready
+      ready_tumors = bot.structures.tags_in(bot.shared.unused_tumors)
       if ready_tumors.empty:
-        capable_queens = bot.units(UnitTypeId.QUEEN).filter(lambda q: q.energy > 30)
+        capable_queens = bot.units(UnitTypeId.QUEEN).idle.filter(lambda q: q.energy > 40)
         if capable_queens.exists:
           target = bot.planner.queen_tumor_position()
           if target:
@@ -165,16 +165,25 @@ class StructureRequest():
           target = bot.planner.tumor_tumor_position(tumor)
           if target:
             bot.do(tumor(AbilityId.BUILD_CREEPTUMOR_TUMOR, target))
-            bot.shared.unused_tumors.discard(tumor.tag)
 
-    # print(f"fulfilling StructureRequest for {self.expense}, urgency {self.urgency}")
+          bot.shared.unused_tumors.discard(tumor.tag)
+
     if bot.shared.common_worker not in UNIT_TRAINED_FROM[self.structure_type]:
       # this structure is "morphed" from another structure (Lair, Hive, Orbital Command, Planetary Fortress, Greater Spire, etc)
-      structure_root = list(UNIT_TRAINED_FROM[self.structure_type])[0]
-      if bot.structures(structure_root).ready.empty:
-        return StructureRequest(structure_root, self.urgency)
-      else:
-        return bot.structures(structure_root).first(TRAIN_INFO[structure_root][self.structure_type]['ability'])
+      structure_root = list(UNIT_TRAINED_FROM[self.structure_type])[0]    # if asking for Hive, this is Lair
+      if bot.structures(structure_root).empty:                            # if there is no Lair...
+        return StructureRequest(structure_root, self.urgency)             # return StructureRequest for Lair
+
+      if 'requires_tech_building' in TRAIN_INFO[structure_root][self.structure_type]:                 # if the Hive requires a tech building
+        dependency_type = TRAIN_INFO[structure_root][self.structure_type]['requires_tech_building']   # capture the type_id for Infestation pit
+        dependents = bot.structures(dependency_type)                                                  # find all the existing infestation pits
+        if dependents.empty and not bot.already_pending(dependency_type):    # we aren't making one yet
+          return StructureRequest(dependency_type, self.urgency)             # Obviously we're going to do that
+
+        if dependents.ready.empty:
+          return                                                              # it's not done yet
+
+      return bot.structures(structure_root).first(TRAIN_INFO[structure_root][self.structure_type]['ability'])
 
     build_info = TRAIN_INFO[bot.shared.common_worker][self.structure_type]
     if 'requires_tech_building' in build_info:
@@ -223,7 +232,18 @@ class ResearchRequest():
       return
 
     ability = RESEARCH_INFO[structure_id][self.upgrade]['ability']
-    return structures.filter(lambda s: not s.is_active).first(ability)
+    prerequisite = structure_id
+    if 'required_building' in RESEARCH_INFO[structure_id][self.upgrade]:
+      prerequisite = RESEARCH_INFO[structure_id][self.upgrade]['required_building']
+
+    dependents = bot.structures(prerequisite)
+    if dependents.empty and not bot.already_pending(prerequisite):
+      return StructureRequest(prerequisite, self.urgency)
+
+    if dependents.ready.empty:
+      return
+
+    return structures.ready.filter(lambda s: not s.is_active).first(ability)
 
 def list_diff(first, second):
   second = set(second)

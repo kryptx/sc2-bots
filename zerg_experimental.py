@@ -20,7 +20,9 @@ def army_priority(bot):
   return calculate_priorities
 
 def gas_priority(bot):
-  if bot.structures(UnitTypeId.EXTRACTOR).amount < bot.townhalls.amount / 2:
+  if bot.already_pending(UnitTypeId.EXTRACTOR):
+    return Urgency.NONE
+  elif bot.structures(UnitTypeId.EXTRACTOR).amount < bot.townhalls.amount / 2:
     return Urgency.HIGH
   else:
     return Urgency.VERYLOW
@@ -30,6 +32,7 @@ def build():
       UnitTypeId.ROACHWARREN: lambda: 1,
       UnitTypeId.EVOLUTIONCHAMBER: lambda: 2,
       UnitTypeId.SPAWNINGPOOL: lambda: 1,
+      UnitTypeId.HYDRALISKDEN: lambda: 1,
   })
 
   bot.modules = [
@@ -65,14 +68,14 @@ def build():
             [ UpgradeId.GLIALRECONSTITUTION ],
             [ UpgradeId.EVOLVEGROOVEDSPINES,
               UpgradeId.EVOLVEMUSCULARAUGMENTS ],
+            [ UpgradeId.ZERGMISSILEWEAPONSLEVEL1,
+              UpgradeId.ZERGMISSILEWEAPONSLEVEL2,
+              UpgradeId.ZERGMISSILEWEAPONSLEVEL3 ],
+            [ UpgradeId.ZERGGROUNDARMORSLEVEL1,
+              UpgradeId.ZERGGROUNDARMORSLEVEL2,
+              UpgradeId.ZERGGROUNDARMORSLEVEL3 ],
           ],
           Urgency.MEDIUMLOW: [
-            [ UpgradeId.ZERGMISSILEWEAPONSLEVEL1,
-              UpgradeId.ZERGGROUNDARMORSLEVEL1,
-              UpgradeId.ZERGMISSILEWEAPONSLEVEL2,
-              UpgradeId.ZERGGROUNDARMORSLEVEL2,
-              UpgradeId.ZERGMISSILEWEAPONSLEVEL3,
-              UpgradeId.ZERGGROUNDARMORSLEVEL3 ],
             [ UpgradeId.OVERLORDSPEED ],
             [ UpgradeId.ZERGLINGATTACKSPEED ]
           ]

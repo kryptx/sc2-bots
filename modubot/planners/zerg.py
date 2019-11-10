@@ -24,10 +24,10 @@ _3X3_OFFSETS = _2X2_OFFSETS + [
 _TUMOR_OFFSETS = [
   Point2([ -10, 0 ]),
   Point2([ 10, 0 ]),
-  Point2([ 5, 9 ]),
-  Point2([ 5, -9]),
-  Point2([ -5, 9 ]),
-  Point2([ -5, -9 ])
+  Point2([ 5, 8 ]),
+  Point2([ 5, -8]),
+  Point2([ -5, 8 ]),
+  Point2([ -5, -8 ])
 ]
 
 crawler_positions = [
@@ -160,13 +160,14 @@ class ZergBasePlanner(BasePlanner):
 
   def tumor_tumor_position(self, tumor):
     tp = tumor.position
-    tumors = self.bot.structures({ UnitTypeId.CREEPTUMOR })
+    structures = self.bot.structures
     tumor_candidates = [
       tp + offset
       for offset in _TUMOR_OFFSETS
       if self.bot.in_placement_grid(tp + offset)
       and self.bot.has_creep(tp + offset)
-      and tumors.closer_than(2, tp + offset).empty
+      and structures.closer_than(5, tp + offset).empty
+      and all(expansion.is_further_than(3, tp + offset) for expansion in self.bot.expansion_locations.keys())
     ]
     return tumor_candidates[0] if tumor_candidates else None
 

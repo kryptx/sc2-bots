@@ -120,19 +120,14 @@ class ModuBot(sc2.BotAI):
       cost = self.calculate_cost(request.expense)
       supply_cost = self.calculate_supply_cost(request.expense) if isinstance(request.expense, UnitTypeId) else 0
 
-      thresholds = ( mineral_threshold, vespene_threshold, supply_threshold )
-      lowest_threshold = min(thresholds) if all(t != None for t in thresholds) else Urgency.NONE
-      if request.urgency < lowest_threshold:
-        self.log_request_result(request, original_request, "urgency is below all thresholds")
-        break
-      if cost.minerals and mineral_threshold and request.urgency < mineral_threshold:
-        self.log_request_result(request, original_request, "urgency is below mineral threshold")
+      if cost.minerals > 0 and mineral_threshold and request.urgency < mineral_threshold:
+        self.log_request_result(request, original_request, f"urgency is below mineral threshold (costs {cost.minerals})")
         continue
-      if cost.vespene and vespene_threshold and request.urgency < vespene_threshold:
-        self.log_request_result(request, original_request, "urgency is below vespene threshold")
+      if cost.vespene > 0 and vespene_threshold and request.urgency < vespene_threshold:
+        self.log_request_result(request, original_request, f"urgency is below vespene threshold (costs {cost.vespene})")
         continue
-      if supply_cost and supply_threshold and request.urgency < supply_threshold:
-        self.log_request_result(request, original_request, "urgency is below supply threshold")
+      if supply_cost > 0 and supply_threshold and request.urgency < supply_threshold:
+        self.log_request_result(request, original_request, f"urgency is below supply threshold (costs {supply_cost})")
         continue
 
       can_afford = True
@@ -151,9 +146,9 @@ class ModuBot(sc2.BotAI):
       cost_msg = 'cost not deducted'
       if result or request.reserve_cost:
         cost_msg = 'cost deducted'
-        minerals -= cost.minerals
-        vespene -= cost.vespene
-        supply -= supply_cost
+        minerals -= max(cost.minerals, 0)
+        vespene -= max(cost.vespene, 0)
+        supply -= max(supply_cost, 0)
 
       if can_afford:
         if not result:

@@ -18,7 +18,7 @@ zerg_bot = build_zerg()
 def main():
   sc2.run_game(sc2.maps.get(random.choice(all_maps)), [
     Bot(Race.Zerg, zerg_bot),
-    Computer(Race.Zerg, Difficulty.VeryHard, AIBuild.RandomBuild) # Macro, Power, Rush, Timing, Air, (RandomBuild)
+    Computer(Race.Zerg, Difficulty.VeryHard, AIBuild.Macro) # Macro, Power, Rush, Timing, Air, (RandomBuild)
   ], realtime=False)
 
 if __name__ == '__main__':

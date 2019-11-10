@@ -99,7 +99,7 @@ class AttackObjective(StrategicObjective):
     elif self.status == ObjectiveStatus.RETREATING and all(unit.position.is_closer_than(15, self.shared.rally_point) for unit in self.units):
       completed = True
       self.log.info("completed: we finished retreating")
-    elif (self.enemy_structures + self.enemy_units).closer_than(10, self.target.position).empty:
+    elif self.is_visible(self.target.position) and (self.enemy_structures + self.enemy_units).visible.closer_than(10, self.target.position).empty:
       completed = True
       self.log.info("completed: target location has been successfully cleared")
 
