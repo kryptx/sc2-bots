@@ -5,6 +5,7 @@ from .chat import OptimismChatter
 from .defense import DefendBases
 from .distribute_workers import WorkerDistributor
 from .game_state import GameStateTracker, SurrenderedException
+from .harass import Harasser
 from .macro import MacroManager
 from .module import BotModule
 from .rally import RallyPointer

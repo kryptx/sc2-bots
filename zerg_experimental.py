@@ -1,9 +1,10 @@
 from sc2.constants import UnitTypeId, BuffId, UpgradeId
 
 from modubot.bot import ModuBot
-from modubot.common import Urgency
+from modubot.common import Urgency, BaseStructures
 from modubot.modules import *
 from modubot.scouting import *
+from modubot.harassment.mission import HarassmentMission
 from modubot.objectives.objective import ObjectiveStatus
 
 def army_priority(bot):
@@ -11,9 +12,15 @@ def army_priority(bot):
     return bot.units(unit_id).amount
 
   def calculate_priorities():
-    priority = [ UnitTypeId.ROACH, UnitTypeId.ZERGLING ]
-    if bot.townhalls.amount > 1:
-      priority = sorted([ UnitTypeId.HYDRALISK, UnitTypeId.ROACH ], key=unit_amount)
+    priority = [
+      UnitTypeId.ROACH,
+      UnitTypeId.ZERGLING
+    ] if bot.townhalls.amount == 1 else sorted([
+      UnitTypeId.HYDRALISK,
+      UnitTypeId.ROACH,
+      UnitTypeId.ZERGLING
+    ], key=unit_amount)
+
     bot.log.info(f"Returning unit priority {priority}")
     return priority
 
@@ -31,22 +38,32 @@ def gas_urgency(bot):
 
 def worker_urgency(bot):
   def compute_urgency():
+    urgency = Urgency.NONE
     if bot.shared.optimism == 1:
-      return Urgency.VERYHIGH
+      urgency = Urgency.VERYHIGH
 
-    if bot.shared.optimism < 0.5:
-      return Urgency.NONE
+    elif bot.shared.optimism < 0.5:
+      urgency = Urgency.NONE
 
-    if bot.shared.optimism < 0.75:
-      return Urgency.LOW
+    elif bot.shared.optimism < 0.625:
+      urgency = Urgency.VERYLOW
 
-    if bot.shared.optimism < 1:
-      return Urgency.MEDIUMLOW
+    elif bot.shared.optimism < 0.75:
+      urgency = Urgency.LOW
 
-    if bot.shared.optimism < 1.25:
-      return Urgency.HIGH
+    elif bot.shared.optimism < 0.875:
+      urgency = Urgency.MEDIUMLOW
 
-    return Urgency.VERYHIGH
+    elif bot.shared.optimism < 1:
+      urgency = Urgency.MEDIUM
+
+    elif bot.shared.optimism < 1.125:
+      urgency = Urgency.MEDIUMHIGH
+
+    elif bot.shared.optimism < 1.25:
+      urgency = Urgency.HIGH
+
+    return urgency
 
   return compute_urgency
 
@@ -70,11 +87,20 @@ def build():
       DefendBases(bot),
       RallyPointer(bot),
       ZergMicro(bot),
+      Harasser(bot, missions=[
+        HarassmentMission(bot,
+          when=lambda:
+            bot.time < 300 and \
+            bot.enemy_structures(BaseStructures).filter(lambda base: base.position not in bot.enemy_start_locations).exists,
+          harass_with={ UnitTypeId.ZERGLING: 12 },
+          urgency=Urgency.VERYHIGH
+        )
+      ]),
       SupplyBufferer(bot, compute_buffer=lambda bot: 2 + bot.townhalls.amount * 4),
       MacroManager(bot, gas_urgency=gas_urgency(bot), worker_urgency=worker_urgency(bot), fast_expand=True),
       ScoutManager(bot,
         missions=[
-          FindBasesMission(bot, unit_priority=[ UnitTypeId.OVERLORD ], start_when=lambda: True),
+          FindBasesMission(bot, unit_priority=[ UnitTypeId.DRONE ], start_when=lambda: bot.time > 45),
           DetectCheeseMission(bot, unit_priority=[ UnitTypeId.ZERGLING, UnitTypeId.DRONE ]),
           ExpansionHuntMission(bot, unit_priority=[ UnitTypeId.ZERGLING, UnitTypeId.ROACH ]),
           ExpansionHuntMission(bot, unit_priority=[ UnitTypeId.OVERLORD ], start_when=lambda: True),

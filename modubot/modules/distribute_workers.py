@@ -33,6 +33,9 @@ class WorkerDistributor(BotModule):
 
     workers_per_gas = 1 + min(2, int(self.workers.amount / acceptable_minerals.amount))
 
+    if self.minerals < 50 and self.vespene > 300:
+      workers_per_gas -= 1
+
     # gas buildings probably at bases that have been destroyed
     bad_geysers = self.structures(
       self.shared.gas_structure

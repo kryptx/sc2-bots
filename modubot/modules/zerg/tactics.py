@@ -36,7 +36,7 @@ class ZergMicro(BotModule):
       if unburrowed_roaches.empty and burrowed_roaches.empty:
         return
       to_burrow = unburrowed_roaches.filter(lambda r: r.health < 40)
-      to_unburrow = burrowed_roaches.filter(lambda r: r.health > 120 or self.enemy_units.closer_than(6, r).empty)
+      to_unburrow = burrowed_roaches.filter(lambda r: r.health > 120)
       for roach in to_burrow:
         self.do(roach(AbilityId.BURROWDOWN))
 
