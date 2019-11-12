@@ -15,20 +15,20 @@ class SimpleArmyBuilder(BotModule):
     unit_priorities = self.get_priorities()
     urgency = Urgency.VERYLOW
 
-    if self.shared.optimism < 2:
-      urgency = Urgency.LOW
-    elif self.shared.optimism < 1.8:
-      urgency = Urgency.MEDIUMLOW
-    elif self.shared.optimism < 1.6:
-      urgency = Urgency.MEDIUM
-    elif self.shared.optimism < 1.4:
-      urgency = Urgency.MEDIUMHIGH
-    elif self.shared.optimism < 1.2:
-      urgency = Urgency.HIGH
-    elif self.shared.optimism < 1:
-      urgency = Urgency.VERYHIGH
-    elif self.shared.optimism < 0.9:
+    if self.shared.optimism < 0.2:
       urgency = Urgency.EXTREME
+    elif self.shared.optimism < 0.4:
+      urgency = Urgency.VERYHIGH
+    elif self.shared.optimism < 0.6:
+      urgency = Urgency.HIGH
+    elif self.shared.optimism < 0.8:
+      urgency = Urgency.MEDIUMHIGH
+    elif self.shared.optimism < 1:
+      urgency = Urgency.MEDIUM
+    elif self.shared.optimism < 1.2:
+      urgency = Urgency.MEDIUMLOW
+    elif self.shared.optimism < 1.4:
+      urgency = Urgency.LOW
 
     requests = []
     for selected_unit in unit_priorities:

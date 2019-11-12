@@ -1,3 +1,4 @@
+from sc2 import Race
 from sc2.constants import UnitTypeId, AbilityId
 from sc2.position import Point2
 from sc2.units import Units
@@ -54,6 +55,7 @@ class MacroManager(BotModule):
 
   def get_mineable_nodes(self):
     return list_flatten([
+      # intentionally includes expansions in progress
       self.mineral_field.closer_than(15, th) for th in self.townhalls
     ])
 
@@ -68,7 +70,7 @@ class MacroManager(BotModule):
     requests = []
     # when a worker goes into a gas structure... the bot thinks it doesn't exist.
     numWorkers = self.workers.amount + gas_structs.amount
-    if numWorkers < min(len(nodes) * 3 + gas_structs.amount * 3, self.worker_limit) and self.townhalls.ready.idle.exists:
+    if numWorkers < min(1 + len(nodes) * 2 + gas_structs.amount * 3, self.worker_limit) and self.townhalls.ready.idle.exists:
       requests.append(BuildRequest(self.shared.common_worker, self.worker_urgency()))
     return requests
 
@@ -120,15 +122,14 @@ class MacroManager(BotModule):
 
       total_desired_harvesters = len(nodes) * 2 + gas_structs.filter(lambda a: a.vespene_contents > 0).amount * 3
 
+      if self.race == Race.Zerg:
+        base_urgency += 1
+
       if self.shared.optimism > 1.1:
         base_urgency += 1
 
       # if the enemy has any bases apart from the main... we got this
       if enemy_bases.amount > 0:
-        base_urgency += 1
-
-      # if we're running out of things to do
-      if self.workers.amount >= total_desired_harvesters - 6:
         base_urgency += 1
 
       # if we're really running out of things to do
@@ -144,7 +145,7 @@ class MacroManager(BotModule):
         base_urgency += 1
 
       if self.townhalls.amount == 1 and self.fast_expand:
-        base_urgency += 4
+        base_urgency += 3
 
       requests.append(BuildRequest(self.shared.new_base, urgency=base_urgency, force_target=self.shared.next_base_location))
 

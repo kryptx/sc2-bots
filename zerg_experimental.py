@@ -23,7 +23,7 @@ def gas_urgency(bot):
   def compute_gas_priority(geysers):
     if bot.already_pending(UnitTypeId.EXTRACTOR):
       return Urgency.NONE
-    elif bot.structures(UnitTypeId.EXTRACTOR).amount < bot.townhalls.amount / 2:
+    elif bot.structures(UnitTypeId.EXTRACTOR).amount < bot.townhalls.amount:
       return Urgency.HIGH
     else:
       return Urgency.VERYLOW
@@ -31,24 +31,22 @@ def gas_urgency(bot):
 
 def worker_urgency(bot):
   def compute_urgency():
-    urgency = Urgency.VERYHIGH
+    if bot.shared.optimism == 1:
+      return Urgency.VERYHIGH
+
+    if bot.shared.optimism < 0.5:
+      return Urgency.NONE
+
+    if bot.shared.optimism < 0.75:
+      return Urgency.LOW
 
     if bot.shared.optimism < 1:
-      urgency -= 6
-    elif bot.shared.optimism < 0.95:
-      urgency -= 7
-    elif bot.shared.optimism < 0.9:
-      urgency -= 8
-    elif bot.shared.optimism < 0.85:
-      urgency -= 9
-    elif bot.shared.optimism < 0.8:
-      urgency -= 10
-    # elif bot.shared.optimism < 0.75:
-    #   urgency -= 8
-    # elif bot.shared.optimism < 0.7:
-    #   urgency -= 9
+      return Urgency.MEDIUMLOW
 
-    return urgency
+    if bot.shared.optimism < 1.25:
+      return Urgency.HIGH
+
+    return Urgency.VERYHIGH
 
   return compute_urgency
 
@@ -71,6 +69,7 @@ def build():
       AttackBases(bot),
       DefendBases(bot),
       RallyPointer(bot),
+      ZergMicro(bot),
       SupplyBufferer(bot, compute_buffer=lambda bot: 2 + bot.townhalls.amount * 4),
       MacroManager(bot, gas_urgency=gas_urgency(bot), worker_urgency=worker_urgency(bot), fast_expand=True),
       ScoutManager(bot,
@@ -87,10 +86,10 @@ def build():
       Upgrader(bot,
         upgrade_sets={
           Urgency.MEDIUMHIGH: [
+            [ UpgradeId.BURROW ],
             [ UpgradeId.ZERGLINGMOVEMENTSPEED ]
           ],
           Urgency.MEDIUM: [
-            [ UpgradeId.GLIALRECONSTITUTION ],
             [ UpgradeId.EVOLVEGROOVEDSPINES,
               UpgradeId.EVOLVEMUSCULARAUGMENTS ],
             [ UpgradeId.ZERGMISSILEWEAPONSLEVEL1,

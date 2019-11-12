@@ -170,7 +170,7 @@ class ModuBot(sc2.BotAI):
     return Point2.center([base.position for base in self.townhalls])
 
   def unallocated(self, unit_types=None, urgency=Urgency.NONE):
-    units = self.units(unit_types) if unit_types else self.units.filter(lambda u: not is_worker(u))
+    units = self.units.ready(unit_types) if unit_types else self.units.ready.filter(lambda u: not is_worker(u))
     return units.tags_not_in(list_flatten([
       list(module.allocated) if module.urgency >= urgency
       else []

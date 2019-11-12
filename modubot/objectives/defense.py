@@ -6,7 +6,7 @@ from modubot.common import Urgency, optimism
 from modubot.objectives.objective import StrategicObjective, ObjectiveStatus
 
 class DefenseObjective(StrategicObjective):
-  def __init__(self, bot, urgency=Urgency.HIGH, rendezvous=None):
+  def __init__(self, bot, urgency=Urgency.VERYHIGH, rendezvous=None):
     super().__init__(bot, urgency, rendezvous)
 
   @property
@@ -33,6 +33,9 @@ class DefenseObjective(StrategicObjective):
       self.allocated.clear()
       self.units = Units([], self.bot)
 
+    if all(e.is_flying for e in self.enemies):
+      self.deallocate({ u.tag for u in self.units if not u.can_attack_air })
+
   def is_complete(self):
     completed = super().is_complete()
     if completed:
@@ -45,8 +48,8 @@ class DefenseObjective(StrategicObjective):
 
   def find_enemies(self):
     return Units(self.shared.known_enemy_units.values(), self.bot).filter(lambda u:
-        (self.structures.closer_than(20, u.position).amount > 1
-        or self.shared.rally_point.is_closer_than(15, u.position))
+      (self.structures.closer_than(20, u.position).amount > 1 or self.shared.rally_point.is_closer_than(15, u.position)) and
+      (u.is_visible or not self.is_visible(u.position))
     )
 
   def optimum_units(self, enemy_units):

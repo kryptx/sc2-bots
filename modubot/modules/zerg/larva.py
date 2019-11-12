@@ -31,16 +31,28 @@ class LarvaInjector(BotModule):
 
     requests.append(BuildRequest(UnitTypeId.QUEEN, queen_urgency))
 
-    ready_queens = self.units(UnitTypeId.QUEEN).idle.filter(lambda q: q.energy > 25)
-    needy_bases = self.townhalls.filter(lambda s: not s.has_buff(BuffId.QUEENSPAWNLARVATIMER))
+    ready_queens = self.units.tags_in(self.queens).filter(lambda q:
+      q.energy >= 25 and
+      (not q.orders or q.orders[0].ability not in [
+        AbilityId.EFFECT_INJECTLARVA,
+        AbilityId.BUILD_CREEPTUMOR_QUEEN
+      ])
+    )
+
+    busy_queens = self.units(UnitTypeId.QUEEN).filter(lambda q: not q.is_idle)
+
+    needy_bases = self.townhalls.filter(lambda s:
+      not s.has_buff(BuffId.QUEENSPAWNLARVATIMER))
 
     for i in range(min(needy_bases.amount, ready_queens.amount)):
       def distance_to_closest_queen(base):
         return base.distance_to(ready_queens.closest_to(base.position))
 
       base_with_closest_queen = max(needy_bases, key=distance_to_closest_queen)
-      selected_queen = ready_queens.closest_to(base_with_closest_queen)
-      self.do(selected_queen(AbilityId.EFFECT_INJECTLARVA, base_with_closest_queen))
+
+      if busy_queens.filter(lambda q: q.orders[0].target == base_with_closest_queen and q.orders[0].ability == AbilityId.EFFECT_INJECTLARVA).empty:
+        selected_queen = ready_queens.closest_to(base_with_closest_queen)
+        self.do(selected_queen(AbilityId.EFFECT_INJECTLARVA, base_with_closest_queen))
       needy_bases = needy_bases.filter(lambda b: b != base_with_closest_queen)
       ready_queens = ready_queens.filter(lambda q: q != selected_queen)
 

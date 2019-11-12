@@ -4,7 +4,7 @@ import sc2
 from sc2.constants import *
 from sc2.units import Units
 
-from .module import BotModule
+from modubot.modules.module import BotModule
 from modubot.common import BaseStructures, list_diff, list_flatten, retreat, is_worker
 
 # Note: This does a little more than micro, and parts could work for other races.
@@ -12,8 +12,6 @@ from modubot.common import BaseStructures, list_diff, list_flatten, retreat, is_
 class ProtossMicro(BotModule):
   def __init__(self, bot):
     super().__init__(bot)
-    self.attack_targets = []
-    self.last_attack = 0
 
   async def on_step(self, iteration):
     await self.arrange()
@@ -37,11 +35,6 @@ class ProtossMicro(BotModule):
           self.do(stalker.move(stalker.position.towards(nearest_enemy, -3)))
 
         self.do(stalker.attack(nearest_enemy.position, queue=True))
-
-    destructables = self.destructables.filter(lambda d: d.position.is_closer_than(10, self.shared.rally_point))
-    if destructables.exists:
-      for unit in self.units.filter(lambda u: not is_worker(u)).idle:
-        self.do(unit.attack(destructables.first))
 
     for effect in self.state.effects:
       if effect.id == EffectId.PSISTORMPERSISTENT:

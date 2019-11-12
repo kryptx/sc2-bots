@@ -101,7 +101,7 @@ class BuildRequest():
         return await self.fulfill_by_warp_in(bot)
 
       selected_builder = None
-      for builder in builders:
+      for builder in builders.filter(lambda b: not b.is_active):
         abilities = await bot.get_available_abilities(builder)
         if ability in abilities:
           selected_builder = builder

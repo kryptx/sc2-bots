@@ -133,6 +133,9 @@ class ProtossBasePlanner(BasePlanner):
     return plan
 
   def get_available_positions(self, structure_type, near=None):
+    if structure_type == UnitTypeId.NEXUS:
+      # We don't build it like this.
+      return []
     for nex_tag in list(self.plans.keys()):
       if nex_tag not in [ nex.tag for nex in self.townhalls ]:
         del self.plans[nex_tag]
