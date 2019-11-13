@@ -33,7 +33,7 @@ class DefenseObjective(StrategicObjective):
       self.allocated.clear()
       self.units = Units([], self.bot)
 
-    if all(e.is_flying for e in self.enemies):
+    if all(e.is_flying or e.is_snapshot for e in self.enemies):
       self.deallocate({ u.tag for u in self.units if not u.can_attack_air })
 
   def is_complete(self):
