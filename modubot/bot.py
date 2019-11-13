@@ -38,7 +38,7 @@ class ModuBot(sc2.BotAI):
 
   def deallocate(self, tag_set):
     for module in self.modules:
-      module.allocated.difference_update(tag_set)
+      module.deallocate(tag_set)
 
   async def on_start(self):
     if self.race == Race.Protoss:
@@ -169,8 +169,21 @@ class ModuBot(sc2.BotAI):
   def bases_centroid(self):
     return Point2.center([base.position for base in self.townhalls])
 
-  def unallocated(self, unit_types=None, urgency=Urgency.NONE):
-    units = self.units.ready(unit_types) if unit_types else self.units.ready.filter(lambda u: not is_worker(u))
+  # Modules that want to claim units are required to:
+  # - Implement an `urgency` property
+  # - report a set of tags of allocated units
+  # - respond to requests to deallocate units
+  # In exchange for meeting these requirements, a module may add units freely to its allocated set,
+  # provided that another module has not claimed them at a higher urgency.
+  def unallocated(self, unit_types=None, urgency=Urgency.NONE, tag_set=None):
+    units = self.units.ready
+    if unit_types:
+      units = units(unit_types)
+    if tag_set:
+      units = units.tags_in(tag_set)
+    if not unit_types and not tag_set:
+      units = units.filter(lambda u: not is_worker(u))
+
     return units.tags_not_in(list_flatten([
       list(module.allocated) if module.urgency >= urgency
       else []

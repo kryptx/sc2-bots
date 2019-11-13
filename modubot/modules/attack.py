@@ -55,3 +55,7 @@ class AttackBases(BotModule):
   @property
   def urgency(self):
     return Urgency.MEDIUM
+
+  def deallocate(self, tag_set):
+    if self.attack_objective:
+      self.attack_objective.allocated.difference_update(tag_set)

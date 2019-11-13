@@ -71,7 +71,7 @@ class WorkerDistributor(BotModule):
       p.is_idle or
       (p.is_gathering and p.orders[0].target in unacceptable_mineral_tags) or
       (p.is_gathering and p.orders[0].target in bad_geysers) or
-      p.orders[0].ability in [ AbilityId.ATTACK_ATTACKTOWARDS,
+      p.orders[0].ability.id in [ AbilityId.ATTACK_ATTACKTOWARDS,
                                AbilityId.ATTACK_ATTACK,
                                AbilityId.ATTACK ]
     )

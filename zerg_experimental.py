@@ -12,14 +12,25 @@ def army_priority(bot):
     return bot.units(unit_id).amount
 
   def calculate_priorities():
-    priority = [
-      UnitTypeId.ROACH,
-      UnitTypeId.ZERGLING
-    ] if bot.townhalls.amount == 1 else sorted([
-      UnitTypeId.HYDRALISK,
-      UnitTypeId.ROACH,
-      UnitTypeId.ZERGLING
-    ], key=unit_amount)
+    if bot.shared.optimism >= 1:
+      # happy path. tech away.
+      return [
+        UnitTypeId.ROACH,
+        UnitTypeId.ZERGLING
+      ] if bot.townhalls.amount == 1 else sorted([
+        UnitTypeId.HYDRALISK,
+        UnitTypeId.ROACH,
+        UnitTypeId.ZERGLING
+      ], key=unit_amount)
+    else:
+      # stop making tech. jeez.
+      priority = [ UnitTypeId.ZERGLING ]
+      if bot.structures(UnitTypeId.ROACHWARREN).ready.exists:
+        priority.insert(0, UnitTypeId.ROACH)
+      if bot.structures(UnitTypeId.HYDRALISKDEN).ready.exists:
+        index = 0 if bot.units(UnitTypeId.HYDRALISK).amount < bot.units(UnitTypeId.ROACH).amount else 1
+        priority.insert(index, UnitTypeId.HYDRALISK)
+      return priority
 
     bot.log.info(f"Returning unit priority {priority}")
     return priority
@@ -38,29 +49,18 @@ def gas_urgency(bot):
 
 def worker_urgency(bot):
   def compute_urgency():
-    urgency = Urgency.NONE
-    if bot.shared.optimism == 1:
-      urgency = Urgency.VERYHIGH
+    urgency = Urgency.VERYHIGH
 
-    elif bot.shared.optimism < 0.5:
-      urgency = Urgency.NONE
-
-    elif bot.shared.optimism < 0.625:
-      urgency = Urgency.VERYLOW
-
-    elif bot.shared.optimism < 0.75:
-      urgency = Urgency.LOW
-
-    elif bot.shared.optimism < 0.875:
+    if bot.shared.optimism < 0.5:
       urgency = Urgency.MEDIUMLOW
 
-    elif bot.shared.optimism < 1:
+    elif bot.shared.optimism < 0.625:
       urgency = Urgency.MEDIUM
 
-    elif bot.shared.optimism < 1.125:
+    elif bot.shared.optimism < 0.75:
       urgency = Urgency.MEDIUMHIGH
 
-    elif bot.shared.optimism < 1.25:
+    elif bot.shared.optimism < 0.875:
       urgency = Urgency.HIGH
 
     return urgency
@@ -92,8 +92,7 @@ def build():
           when=lambda:
             bot.time < 300 and \
             bot.enemy_structures(BaseStructures).filter(lambda base: base.position not in bot.enemy_start_locations).exists,
-          harass_with={ UnitTypeId.ZERGLING: 12 },
-          urgency=Urgency.VERYHIGH
+          harass_with={ UnitTypeId.ZERGLING: 12 }
         )
       ]),
       SupplyBufferer(bot, compute_buffer=lambda bot: 2 + bot.townhalls.amount * 4),

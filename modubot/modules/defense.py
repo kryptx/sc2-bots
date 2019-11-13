@@ -46,3 +46,7 @@ class DefendBases(BotModule):
   @property
   def urgency(self):
     return Urgency.VERYHIGH
+
+  def deallocate(self, tag_set):
+    if self.defense_objective:
+      self.defense_objective.allocated.difference_update(tag_set)

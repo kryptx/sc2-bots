@@ -15,7 +15,7 @@ class Harasser(BotModule):
   async def on_step(self, iteration):
     requests = []
     for mission in self.missions:
-      requests.extend(await mission.on_step())
+      requests.extend(await mission.on_step() or [])
 
     self.missions = [ m for m in self.missions if m.status != HarassmentMissionStatus.COMPLETE ]
 
@@ -25,9 +25,13 @@ class Harasser(BotModule):
   def allocated(self):
     harassers = set()
     for mission in self.missions:
-      harassers.union(mission.active_attackers)
+      harassers = harassers.union(mission.active_attackers)
     return harassers
 
   @property
   def urgency(self):
     return Urgency.VERYHIGH
+
+  def deallocate(self, tag_set):
+    for mission in self.missions:
+      mission.active_attackers.difference_update(tag_set)

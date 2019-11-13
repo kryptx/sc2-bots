@@ -56,5 +56,5 @@ class ZergMicro(BotModule):
       queen = self.units.filter(lambda ally: ally.energy >= 50 and ally.type_id == UnitTypeId.QUEEN).closer_than(5, healable_unit)
       if queen.exists:
         selected_queen = queen.first
-        if selected_queen.is_idle or selected_queen.orders[0].ability != AbilityId.TRANSFUSION_TRANSFUSION:
+        if selected_queen.is_idle or selected_queen.orders[0].ability.id != AbilityId.TRANSFUSION_TRANSFUSION:
           self.do(selected_queen(AbilityId.TRANSFUSION_TRANSFUSION, healable_unit))

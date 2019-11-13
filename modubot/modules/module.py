@@ -11,15 +11,18 @@ class BotModule(object):
   async def on_step(self, iteration):
     raise NotImplementedError("You must implement this function")
 
-  # modules that "claim" units should override this
+
+  # modules that "claim" units should override these two properties and deallocate method
   @property
   def allocated(self):
     return set()
 
-  # ...and this
   @property
   def urgency(self):
     return Urgency.NONE
+
+  def deallocate(self, tag_set):
+    return
 
   # Some other methods that are available
   async def on_start(self):

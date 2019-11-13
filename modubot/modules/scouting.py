@@ -52,6 +52,11 @@ class ScoutManager(BotModule):
   def urgency(self):
     return Urgency.MEDIUMHIGH
 
+  def deallocate(self, tag_set):
+    for mission in self.missions:
+      if mission.unit and mission.unit.tag in tag_set:
+        mission.unit = None
+
   def get_scout(self, mission):
     if mission.unit:
       scouts = self.bot.units.tags_in([ mission.unit.tag ])
