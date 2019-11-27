@@ -35,11 +35,10 @@ class LarvaInjector(BotModule):
     requests.append(BuildRequest(UnitTypeId.QUEEN, queen_urgency))
 
     ready_queens = self.units.tags_in(self.queens).filter(lambda q:
-      q.energy >= 25 and
-      (q.is_idle or q.orders[0].ability.id not in [
+      q.energy >= 25 and not q.is_using_ability({
         AbilityId.EFFECT_INJECTLARVA,
         AbilityId.BUILD_CREEPTUMOR_QUEEN
-      ])
+      })
     )
 
     busy_queens = self.units(UnitTypeId.QUEEN).filter(lambda q: not q.is_idle)
@@ -53,7 +52,7 @@ class LarvaInjector(BotModule):
 
       base_with_closest_queen = min(needy_bases, key=distance_to_closest_queen)
 
-      if busy_queens.filter(lambda q: q.orders[0].target == base_with_closest_queen and q.orders[0].ability.id == AbilityId.EFFECT_INJECTLARVA).empty:
+      if busy_queens.filter(lambda q: q.order_target == base_with_closest_queen and q.is_using_ability(AbilityId.EFFECT_INJECTLARVA)).empty:
         selected_queen = ready_queens.closest_to(base_with_closest_queen)
         self.do(selected_queen(AbilityId.EFFECT_INJECTLARVA, base_with_closest_queen))
       needy_bases = needy_bases.filter(lambda b: b != base_with_closest_queen)

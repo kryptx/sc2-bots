@@ -48,10 +48,11 @@ class DefenseObjective(StrategicObjective):
 
   def find_enemies(self):
     return Units(self.shared.known_enemy_units.values(), self.bot).filter(lambda u:
-      (self.structures.closer_than(20, u.position).amount > 1 or self.shared.rally_point.is_closer_than(15, u.position)) and
-      (u.is_visible or not self.is_visible(u.position))
+      (self.townhalls.closer_than(20, u.position).exists or
+      self.shared.rally_point.is_closer_than(20, u.position) or
+      self.structures.closer_than(20, u.position).amount > 2)
     )
 
   def optimum_units(self, enemy_units):
-    return enemy_units.amount * 2
+    return enemy_units.amount * 3
 

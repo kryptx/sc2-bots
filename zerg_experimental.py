@@ -13,8 +13,16 @@ def army_priority(bot):
 
   def calculate_priorities():
     priority = []
-    if bot.shared.optimism >= 0.75:
+    if bot.shared.optimism >= 0.6:
       # "happy" path. tech away.
+      priority = [ UnitTypeId.ZERGLING ]
+      if bot.structures(UnitTypeId.SPAWNINGPOOL).exists:
+        priority.insert(0, UnitTypeId.ROACH)
+        if bot.structures(UnitTypeId.ROACHWARREN).exists:
+          priority.insert(0, UnitTypeId.HYDRALISK)
+          if bot.structures(UnitTypeId.HYDRALISKDEN).exists:
+            priority.sort(key=unit_amount)
+
       priority = [
         UnitTypeId.ROACH,
         UnitTypeId.ZERGLING
