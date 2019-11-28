@@ -1,7 +1,7 @@
 import enum
 
 from sc2.constants import UnitTypeId, AbilityId
-from modubot.common import Urgency, BaseStructures, BuildRequest
+from modubot.common import Urgency, BaseStructures, BuildRequest, median_position
 
 class HarassmentMissionStatus(enum.IntFlag):
   PENDING = 0,
@@ -58,6 +58,12 @@ class HarassmentMission():
         order_required = tagged_units.filter(lambda u: u.tag not in self.order_given)
         if order_required.empty:
           return  # don't need to return requests at this point; building happens only when status is building
+
+        staging_area = median_position([ u.position for u in order_required ])
+        if order_required.further_than(10, staging_area).exists:
+          for aggressor in order_required:
+            self.do(aggressor.move(staging_area))
+          return
 
         centroid = self.enemy_structures.center
         def distance_to_enemy_base(position):

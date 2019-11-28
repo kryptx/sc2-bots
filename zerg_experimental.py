@@ -20,26 +20,17 @@ def army_priority(bot):
         priority.insert(0, UnitTypeId.ROACH)
         if bot.structures(UnitTypeId.ROACHWARREN).exists:
           priority.insert(0, UnitTypeId.HYDRALISK)
-          if bot.structures(UnitTypeId.HYDRALISKDEN).exists:
-            priority.sort(key=unit_amount)
-
-      priority = [
-        UnitTypeId.ROACH,
-        UnitTypeId.ZERGLING
-      ] if bot.townhalls.amount == 1 else sorted([
-        UnitTypeId.HYDRALISK,
-        UnitTypeId.ROACH,
-        UnitTypeId.ZERGLING
-      ], key=unit_amount)
+          priority.insert(0, UnitTypeId.RAVAGER)
     else:
       # stop making tech. jeez.
       priority = [ UnitTypeId.ZERGLING ]
       if bot.structures(UnitTypeId.ROACHWARREN).exists:
-        priority.append(UnitTypeId.ROACH)
+        priority.insert(0, UnitTypeId.ROACH)
+        priority.insert(0, UnitTypeId.RAVAGER)
       if bot.structures(UnitTypeId.HYDRALISKDEN).exists:
-        priority.append(UnitTypeId.HYDRALISK)
+        priority.insert(0, UnitTypeId.HYDRALISK)
 
-      priority.sort(key=unit_amount)
+    priority.sort(key=unit_amount)
 
     bot.log.info(f"Returning unit priority {priority}")
     return priority
