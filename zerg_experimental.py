@@ -95,7 +95,7 @@ def build():
           harass_with={ UnitTypeId.ZERGLING: 12 }
         )
       ]),
-      SupplyBufferer(bot, compute_buffer=lambda bot: 2 + bot.townhalls.amount * 4),
+      SupplyBufferer(bot, compute_buffer=lambda bot: bot.townhalls.amount * 6 - 2),
       MacroManager(bot, gas_urgency=gas_urgency(bot), worker_urgency=worker_urgency(bot), fast_expand=True),
       ScoutManager(bot,
         missions=[

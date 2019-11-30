@@ -105,9 +105,9 @@ class StrategicObjective():
       for unit in self.units:
         self.do_attack(unit)
 
-    near_target_units = self.units.closer_than(30, self.target)
+    near_target_units = self.units.closer_than(15, self.target)
     cooling_down_units = near_target_units.filter(lambda u: u.weapon_cooldown > 0)
-    if cooling_down_units.amount < near_target_units.amount / 4:
+    if cooling_down_units.amount < near_target_units.amount / 3:
       for unit in cooling_down_units:
         self.do(unit.move(unit.position.towards(self.target, 2)))
         self.do(unit.attack(self.target.position, queue=True))
@@ -139,7 +139,9 @@ class StrategicObjective():
     still_needed = minimum_units - allocated_units
     still_wanted = optimum_units - allocated_units
     usable_units = self.unallocated(urgency=self.urgency)
-    preferred_units = usable_units.filter(lambda u: u.can_attack_both)
+    if enemy_units.filter(lambda e: not e.is_flying).empty:
+      usable_units = usable_units.filter(lambda u: u.can_attack_air)
+    preferred_units = usable_units.filter(lambda u: u.can_attack_both) if usable_units.exists else usable_units
     adding_units = set()
 
     if preferred_units.amount >= still_needed:
@@ -160,6 +162,7 @@ class StrategicObjective():
 
       elif self.status == ObjectiveStatus.RETREATING and \
         self.shared.optimism > 1.5 and \
+        self.units.exists and \
         self.units.closer_than(15, median_position([u.position for u in self.units])).amount > self.units.amount / 2:
         self.status = ObjectiveStatus.STAGING
         self.status_since = self.time
