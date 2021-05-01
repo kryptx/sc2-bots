@@ -19,4 +19,4 @@ class ExpansionHuntMission(ScoutingMission):
   def generate_targets(self):
     enemy_bases = [b.position for b in self.enemy_structures(BaseStructures)]
     our_bases = list(self.owned_expansions.keys())
-    self.targets = [ p for p in self.expansion_locations.keys() if p not in enemy_bases + our_bases ]
+    self.targets = [ p for p in self.expansion_locations_dict.keys() if p not in enemy_bases + our_bases ]

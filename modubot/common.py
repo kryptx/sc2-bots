@@ -84,8 +84,8 @@ class BuildRequest():
     if (self.expense in bot.limits and all_units(self.expense).amount + bot.already_pending(self.expense) >= bot.limits[self.expense]()):
       return
 
-    if 'requires_tech_building' in TRAIN_INFO[root_type][self.expense]:
-      dependency_type = TRAIN_INFO[root_type][self.expense]['requires_tech_building']
+    if 'required_building' in TRAIN_INFO[root_type][self.expense]:
+      dependency_type = TRAIN_INFO[root_type][self.expense]['required_building']
       dependents = all_units(dependency_type)
       if dependents.empty and not bot.already_pending(dependency_type):
         return BuildRequest(dependency_type, self.urgency)
@@ -126,11 +126,11 @@ class BuildRequest():
 
     targets = bot.planner.get_available_positions(self.expense, near=self.near)
     for location in targets:
-      can_build = await bot.can_place(self.expense, location)
+      can_build = await bot.can_place_single(self.expense, location)
       if can_build:
         return workers.closest_to(location).build(self.expense, location)
 
-    print("Failed to build structure due to poor planning!")
+    bot.log.warning("Failed to build structure due to poor planning!")
     await bot.planner.increase_buildable_area(workers)
 
   async def fulfill_by_warp_in(self, bot):
@@ -141,7 +141,9 @@ class BuildRequest():
       warpgates = bot.structures(UnitTypeId.WARPGATE).ready
       for gate in warpgates:
         abilities = await bot.get_available_abilities(gate)
-        if AbilityId.WARPGATETRAIN_ZEALOT not in abilities:
+        # if we can't warp in either sentry or zealot, then the gate is busy
+        # if we only can't warp in zealot, we might have enough gas for sentry or HT
+        if all(a not in abilities for a in [AbilityId.WARPGATETRAIN_SENTRY, AbilityId.WARPGATETRAIN_ZEALOT]):
           continue
         return gate.warp_in(self.expense, placement)
       # if we got here, there weren't enough warpgates
@@ -177,7 +179,7 @@ class ResearchRequest():
     self.expense = upgrade
 
   async def fulfill(self, bot):
-    # print(f"fulfilling ResearchRequest for {self.expense}, urgency {self.urgency}")
+    bot.log.debug(f"fulfilling ResearchRequest for {self.expense}, urgency {self.urgency}")
     structure_id = UPGRADE_RESEARCHED_FROM[self.upgrade]
     structures = bot.structures(structure_id)
     if structures.ready.filter(lambda s: not s.is_active).empty:

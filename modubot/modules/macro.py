@@ -44,7 +44,7 @@ class MacroManager(BotModule):
 
     all_possible_expansions = [
       loc
-      for loc in list(self.expansion_locations.keys())
+      for loc in list(self.expansion_locations_dict.keys())
       if loc not in self.owned_expansions.keys()
         and not self.enemy_structures.closer_than(8, loc).exists
     ]
@@ -145,7 +145,7 @@ class MacroManager(BotModule):
         base_urgency += 1
 
       if self.townhalls.amount == 1 and self.fast_expand:
-        base_urgency += 3
+        base_urgency += 4
 
       requests.append(BuildRequest(self.shared.new_base, urgency=base_urgency, force_target=self.shared.next_base_location))
 

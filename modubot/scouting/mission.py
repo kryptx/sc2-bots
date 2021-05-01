@@ -60,7 +60,7 @@ class ScoutingMission():
     if self.status >= ScoutingMissionStatus.COMPLETE:
       return
     if self.status == ScoutingMissionStatus.PENDING and self.start_when():
-      print("Setting scouting mission to active")
+      self.log.info("Setting scouting mission to active")
       self.status = ScoutingMissionStatus.ACTIVE
 
   # functions for override

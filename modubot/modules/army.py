@@ -1,8 +1,6 @@
 import math
 from sc2.constants import UpgradeId, UnitTypeId
 
-from sc2.dicts.unit_train_build_abilities import TRAIN_INFO
-
 from .module import BotModule
 from modubot.common import BuildRequest, Urgency
 

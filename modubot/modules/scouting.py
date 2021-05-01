@@ -83,12 +83,12 @@ class ScoutManager(BotModule):
 
   def release_scout(self, scout):
     if scout.type_id == self.shared.common_worker:
-      print("Releasing worker")
+      self.log.debug("Releasing worker")
       mineral_field = self.mineral_field.filter(lambda f: any(th.position.is_closer_than(15, f.position) for th in self.townhalls))
       if mineral_field.exists:
         self.do(scout.gather(mineral_field.random))
     else:
-      print("Releasing non-worker")
+      self.log.debug("Releasing non-worker")
       self.do(scout.move(self.shared.rally_point))
 
   async def evaluate_mission_status(self):

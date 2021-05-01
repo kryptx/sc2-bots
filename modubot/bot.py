@@ -1,6 +1,7 @@
 import logging
 import random
 import sc2
+import sys
 
 from sc2 import Race
 from sc2.constants import UnitTypeId, UpgradeId
@@ -21,10 +22,14 @@ class ModuBot(sc2.BotAI):
 
   def __init__(self, modules=[], limits=dict(), log_level=logging.INFO):
     rand = random.randint(100000,999999)
+    logging.basicConfig(level=log_level,
+                    format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s',
+                    datefmt='%H:%M:%S.%%f',
+                    handlers=[logging.StreamHandler(sys.stdout)])
     self.log = logging.getLogger(f"ModuBot-{rand}")
-    self.log.setLevel(log_level)
     self.shared = OptionsObject()  # just a generic object
     self.shared.optimism = 1       # Because the linter is an asshole
+    self.unit_command_uses_self_do = True
 
     # Various info that's often needed
     self.shared.enemy_race = None
@@ -91,7 +96,7 @@ class ModuBot(sc2.BotAI):
         module_result = await module.on_step(iteration) or []
         requests.extend(module_result)
       except SurrenderedException:
-        print("Exiting due to surrender")
+        self.log.info("Exiting due to surrender")
         return
 
     requests.sort(key=urgencyValue, reverse=True)

@@ -92,7 +92,7 @@ class DetectCheeseMission(ScoutingMission):
     def distance_to_ramp(base):
       return base.distance_to(likely_main_ramp.bottom_center)
 
-    possible_naturals = [ position for position in self.expansion_locations.keys() if position.is_further_than(1.0, base.position) ]
+    possible_naturals = [ position for position in self.expansion_locations_dict.keys() if position.is_further_than(1.0, base.position) ]
     likely_natural = min(possible_naturals, key=distance_to_ramp)
 
     corners = [ Point2([8, 8]), Point2([8, -8]), Point2([-8, -8]), Point2([-8, 8]) ]

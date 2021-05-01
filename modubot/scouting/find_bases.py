@@ -22,5 +22,5 @@ class FindBasesMission(ScoutingMission):
       any(location.is_closer_than(1, base.position) for location in self.enemy_start_locations))
 
     if enemy_bases.exists:
-      print("Find Bases Mission Complete")
+      self.log.info("Find Bases Mission Complete")
       self.status = ScoutingMissionStatus.COMPLETE

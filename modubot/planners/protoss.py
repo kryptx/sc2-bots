@@ -97,13 +97,13 @@ class ProtossBasePlanner(BasePlanner):
     if not self.already_pending(UnitTypeId.PYLON):
       targets = self.planner.get_available_positions(UnitTypeId.PYLON)
       for location in targets:
-        can_build = await self.can_place(UnitTypeId.PYLON, location)
+        can_build = await self.can_place_single(UnitTypeId.PYLON, location)
         if can_build:
-          print("-> Force-built pylon.")
+          self.log.warning("Force-built pylon.")
           return workers.closest_to(location).build(UnitTypeId.PYLON, location)
-      print("-> Failed to force-build pylon.")
+      self.log.warning("Failed to force-build pylon.")
     else:
-      print("-> Pylon already pending.")
+      self.log.info("Pylon already pending.")
 
   def may_place(self, structure_type):
     return self.structures(UnitTypeId.PYLON).ready.exists or structure_type in [UnitTypeId.PYLON, UnitTypeId.NEXUS]
@@ -119,7 +119,7 @@ class ProtossBasePlanner(BasePlanner):
     return all(self.in_placement_grid(pos) and abs(self.get_terrain_height(pos) - desired_height) < 0.5 and all(r.is_further_than(1.0, pos) for r in resources) and all(all(point.is_further_than(1.0, pos) for point in r.points) for r in ramps) for pos in [ offset + location for offset in _3X3_OFFSETS ])
 
   def initialize_plans(self, base):
-    print("Creating building plan for base")
+    self.log.info("Creating building plan for base")
 
     plan = ProtossBasePlan()
     base_terrain_height = self.get_terrain_height(base.position)

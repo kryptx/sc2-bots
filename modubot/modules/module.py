@@ -4,6 +4,7 @@ from modubot.common import Urgency
 class BotModule(object):
   def __init__(self, bot):
     self.bot = bot
+    self.log = bot.log.getChild(type(self).__name__)
 
   def __getattr__(self, name):
     return getattr(self.bot, name)

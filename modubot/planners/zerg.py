@@ -100,13 +100,13 @@ class ZergBasePlanner(BasePlanner):
     if queens.exists and not self.already_pending(UnitTypeId.CREEPTUMOR):
       targets = self.planner.get_available_positions(UnitTypeId.CREEPTUMOR)
       for location in targets:
-        can_build = await self.can_place(UnitTypeId.CREEPTUMOR, location)
+        can_build = await self.can_place_single(UnitTypeId.CREEPTUMOR, location)
         if can_build:
-          print("-> Force-built creep tumor.")
+          self.log.warning("Force-built creep tumor.")
           return queens.closest_to(location).build(UnitTypeId.CREEPTUMOR, location)
-      print("-> Failed to force-build creep tumor.")
+      self.log.warning("Failed to force-build creep tumor.")
     else:
-      print("-> Creep tumor already pending.")
+      self.log.info("Creep tumor already pending.")
 
   def can_place_small(self, location, desired_height):
     resources = [ g.position for g in (self.vespene_geyser + self.mineral_field) ]
@@ -119,7 +119,7 @@ class ZergBasePlanner(BasePlanner):
     return all(self.in_placement_grid(pos) and abs(self.get_terrain_height(pos) - desired_height) < 0.5 and all(r.is_further_than(1.0, pos) for r in resources) and all(all(point.is_further_than(1.0, pos) for point in r.points) for r in ramps) for pos in [ offset + location for offset in _3X3_OFFSETS ])
 
   def initialize_plans(self, base):
-    print("Creating building plan for base")
+    self.log.info("Creating building plan for base")
 
     plan = ZergBasePlan()
     base_terrain_height = self.get_terrain_height(base.position)
@@ -130,7 +130,7 @@ class ZergBasePlanner(BasePlanner):
           plan.small_positions += [ mutate(pos) + base.position for pos in crawler_positions[i]]
           plan.large_positions += [ mutate(pos) + base.position for pos in structure_positions[i]]
 
-    self.bot.log.info(f"Returning crawler positions {plan.small_positions} and structure positions {plan.large_positions} ")
+    self.log.info(f"Returning crawler positions {plan.small_positions} and structure positions {plan.large_positions} ")
     return plan
 
   def get_available_positions(self, structure_type, near=None):
@@ -169,7 +169,7 @@ class ZergBasePlanner(BasePlanner):
       if self.bot.in_placement_grid(tp + offset)
       and self.bot.has_creep(tp + offset)
       and structures.closer_than(5, tp + offset).empty
-      and all(expansion.is_further_than(3, tp + offset) for expansion in self.bot.expansion_locations.keys())
+      and all(expansion.is_further_than(3, tp + offset) for expansion in self.bot.expansion_locations_dict.keys())
     ]
     return tumor_candidates[0] if tumor_candidates else None
 
