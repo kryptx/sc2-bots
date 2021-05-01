@@ -7,8 +7,8 @@ from modubot.common import Urgency, optimism, is_worker, median_position
 from modubot.objectives.objective import StrategicObjective, ObjectiveStatus
 
 class AttackObjective(StrategicObjective):
-  def __init__(self, bot, target, urgency=Urgency.MEDIUM, rendezvous=None):
-    super().__init__(bot, urgency, rendezvous)
+  def __init__(self, module, target, urgency=Urgency.MEDIUM, rendezvous=None):
+    super().__init__(module, urgency, rendezvous)
     self._target = target
 
   @property

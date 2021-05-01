@@ -37,7 +37,7 @@ class AttackBases(BotModule):
       enemy_bases = self.enemy_structures(BaseStructures)
       if enemy_bases.exists:
         self.attack_objective = AttackObjective(
-          self.bot,
+          self,
           enemy_bases.furthest_to(
             Point2.center([ u.position for u in known_enemy_units ]) if known_enemy_units
             else self.enemy_start_locations[0]

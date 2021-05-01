@@ -6,8 +6,8 @@ from modubot.common import Urgency, optimism
 from modubot.objectives.objective import StrategicObjective, ObjectiveStatus
 
 class DefenseObjective(StrategicObjective):
-  def __init__(self, bot, urgency=Urgency.HIGH, rendezvous=None):
-    super().__init__(bot, urgency, rendezvous)
+  def __init__(self, module, urgency=Urgency.HIGH, rendezvous=None):
+    super().__init__(module, urgency, rendezvous)
 
   @property
   def target(self):

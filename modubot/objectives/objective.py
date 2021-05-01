@@ -16,8 +16,9 @@ class ObjectiveStatus(enum.IntFlag):
   RETREATING = 4    # boo
 
 class StrategicObjective():
-  def __init__(self, bot, urgency, rendezvous=None):
-    self.bot = bot
+  def __init__(self, module, urgency, rendezvous=None):
+    self.module = module
+    self.bot = module.bot
     self.status = ObjectiveStatus.ALLOCATING
     self.status_since = bot.time
     self.allocated = set()
@@ -26,7 +27,7 @@ class StrategicObjective():
     self.units = Units([], bot)
     self.last_seen = bot.time
     self.enemies = self.find_enemies()
-    self.log = logging.getLogger(f"ModuBot.{type(self).__name__}")
+    self.log = module.log.getChild(type(self).__name__)
 
   def __getattr__(self, name):
     return getattr(self.bot, name)
