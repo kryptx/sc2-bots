@@ -222,5 +222,25 @@ def retreat(unit, target):
 def is_worker(unit):
   return unit.type_id in [ UnitTypeId.PROBE, UnitTypeId.SCV, UnitTypeId.DRONE, UnitTypeId.MULE, UnitTypeId.OVERLORD ]
 
+class LoggerWithFields(object):
+  def __init__(self, logger, fields):
+    if type(logger) == LoggerWithFields:
+      self.logger = logger.logger
+      self.fields = {**logger.fields, **fields}
+    else:
+      self.logger = logger
+      self.fields = fields
+
+  def __getattr__(self, name):
+    if name not in ['debug','info','warn','warning','error']:
+      return getattr(self.logger, name)
+
+    def log_with_fields(msg):
+      if isinstance(msg, str):
+        msg = {"message": msg}
+      getattr(self.logger, name)({**msg, **self.fields})
+
+    return log_with_fields
+
 class OptionsObject(object):
   pass

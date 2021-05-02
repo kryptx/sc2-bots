@@ -34,4 +34,20 @@ class SimpleArmyBuilder(BotModule):
       # each unit request is lower priority than the last
       urgency -= 1
 
+    self.log_unit_breakdown()
+
     return requests
+
+  def log_unit_breakdown(self):
+    units = {}
+    for u in self.units:
+      tid = str(u.type_id)
+      cost = u._type_data._proto.food_required
+      if tid in units:
+        units[tid] += cost
+      else:
+        units[tid] = cost
+    self.log.info({
+      "message": "Unit breakdown",
+      "units": units
+    })

@@ -6,7 +6,7 @@ from modubot.common import Urgency, optimism
 from modubot.objectives.objective import StrategicObjective, ObjectiveStatus
 
 class DefenseObjective(StrategicObjective):
-  def __init__(self, module, urgency=Urgency.HIGH, rendezvous=None):
+  def __init__(self, module, urgency=Urgency.VERYHIGH, rendezvous=None):
     super().__init__(module, urgency, rendezvous)
 
   @property
@@ -33,7 +33,7 @@ class DefenseObjective(StrategicObjective):
       self.allocated.clear()
       self.units = Units([], self.bot)
 
-    if all(e.is_flying or e.is_snapshot for e in self.enemies):
+    if all(e.is_flying for e in self.enemies):
       self.deallocate({ u.tag for u in self.units if not u.can_attack_air })
 
   def is_complete(self):

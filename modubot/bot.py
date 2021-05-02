@@ -3,6 +3,8 @@ import random
 import sc2
 import sys
 
+from pythonjsonlogger import jsonlogger
+
 from sc2 import Race
 from sc2.constants import UnitTypeId, UpgradeId
 from sc2.unit_command import UnitCommand
@@ -17,15 +19,15 @@ from modubot.common import Urgency, list_flatten, OptionsObject, is_worker
 def urgencyValue(req):
   return req.urgency
 
+handler = logging.FileHandler(filename='logs/sc2.log',encoding='utf-8')
+handler.setFormatter(jsonlogger.JsonFormatter())
+logging.basicConfig(level=logging.INFO,handlers=[handler])
+
 ### EL BOT ###
 class ModuBot(sc2.BotAI):
 
-  def __init__(self, modules=[], limits=dict(), log_level=logging.INFO):
+  def __init__(self, modules=[], limits=dict()):
     rand = random.randint(100000,999999)
-    logging.basicConfig(level=log_level,
-                    format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s',
-                    datefmt='%H:%M:%S.%%f',
-                    handlers=[logging.StreamHandler(sys.stdout)])
     self.log = logging.getLogger(f"ModuBot-{rand}")
     self.shared = OptionsObject()  # just a generic object
     self.shared.optimism = 1       # Because the linter is an asshole
@@ -81,13 +83,27 @@ class ModuBot(sc2.BotAI):
       await module.on_upgrade_complete(upgrade_id)
 
   def log_request_header(self, iteration):
-    self.log.info(f"--- Iter {iteration} | Opt {self.shared.optimism} | M {self.minerals} | V {self.vespene} | S {self.supply_used}/{self.supply_cap}")
+    self.log.info({
+      "message": "Beginning iteration",
+      "iteration": iteration,
+      "optimism": self.shared.optimism,
+      "minerals": self.minerals,
+      "vespene": self.vespene,
+      "supply_used": self.supply_used,
+      "supply_cap": self.supply_cap
+    })
 
   def log_request_result(self, request, original_request, result_msg):
-    request_description = str(request.expense)
-    if original_request.expense != request.expense:
-      request_description += f" (from {type(original_request).__name__} for {original_request.expense})"
-    self.log.info(f"{request.urgency} request for {request_description}: {result_msg}")
+    self.log.info({
+      "message": "Request evaluated",
+      "urgency": request.urgency,
+      "expense": str(request.expense),
+      "result": result_msg,
+      "request": {
+        "type": type(original_request).__name__,
+        "expense": original_request.expense,
+      }
+    })
 
   async def on_step(self, iteration):
     requests = []
@@ -117,7 +133,17 @@ class ModuBot(sc2.BotAI):
       result = await request.fulfill(self)
 
       while hasattr(result, 'fulfill'):
-        self.log.info(f"Replacing {type(request)} for {request.expense} with {type(result)} for {result.expense}")
+        self.log.info({
+          "message": "Replacing request",
+          "requested": {
+            "request_type": type(request),
+            "expense": request.expense
+          },
+          "replacement": {
+            "request_type": type(result),
+            "expense": result.expense
+          }
+        })
         request = result
         result = await request.fulfill(self)
 
@@ -170,6 +196,9 @@ class ModuBot(sc2.BotAI):
         self.log_request_result(request, original_request, "️✔ Filled")
       else:
         self.log_request_result(request, original_request, f"️Can't afford ({cost_msg})")
+
+    handler.flush()
+    handler.close()
 
   def bases_centroid(self):
     return Point2.center([base.position for base in self.townhalls])

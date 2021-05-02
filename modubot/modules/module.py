@@ -1,17 +1,16 @@
 from sc2.units import Units
-from modubot.common import Urgency
+from modubot.common import Urgency, LoggerWithFields
 
 class BotModule(object):
   def __init__(self, bot):
     self.bot = bot
-    self.log = bot.log.getChild(type(self).__name__)
+    self.log = LoggerWithFields(bot.log, { "module": type(self).__name__ })
 
   def __getattr__(self, name):
     return getattr(self.bot, name)
 
   async def on_step(self, iteration):
     raise NotImplementedError("You must implement this function")
-
 
   # modules that "claim" units should override these two properties and deallocate method
   @property

@@ -44,9 +44,9 @@ class AttackBases(BotModule):
           ).position
         )
       elif self.enemy_structures.exists:
-        self.attack_objective = AttackObjective(self.bot, self.enemy_structures.closest_to(self.units.center).position)
+        self.attack_objective = AttackObjective(self, self.enemy_structures.closest_to(self.units.center).position)
       else:
-        self.attack_objective = AttackObjective(self.bot, self.enemy_start_locations[0])
+        self.attack_objective = AttackObjective(self, self.enemy_start_locations[0])
 
   @property
   def allocated(self):

@@ -20,12 +20,12 @@ class StrategicObjective():
     self.module = module
     self.bot = module.bot
     self.status = ObjectiveStatus.ALLOCATING
-    self.status_since = bot.time
+    self.status_since = self.bot.time
     self.allocated = set()
     self.urgency = urgency
     self.rendezvous = rendezvous
-    self.units = Units([], bot)
-    self.last_seen = bot.time
+    self.units = Units([], self.bot)
+    self.last_seen = self.bot.time
     self.enemies = self.find_enemies()
     self.log = module.log.getChild(type(self).__name__)
 
@@ -91,7 +91,7 @@ class StrategicObjective():
     return 0
 
   def optimum_units(self, enemy_units):
-    return self.bot.units.filter(lambda u: not is_worker(u)).amount
+    return self.bot.units.filter(lambda u: u.ground_dps + u.air_dps > 5 and not is_worker(u)).amount
 
   def do_attack(self, unit):
     self.do(unit.attack(self.enemies.closest_to(self.target.position).position if self.enemies.exists else self.target.position))
@@ -151,6 +151,8 @@ class StrategicObjective():
       adding_units = set(preferred_units)
       adding_units.update(usable_units.closest_n_units(self.target.position, still_wanted))
 
+    if len(adding_units) > 0:
+      self.log.info(f"Allocating {len(adding_units)} units")
     self.deallocate(adding_units)
     self.allocated = self.allocated.union(adding_units)
     if len(self.allocated) >= minimum_units:
