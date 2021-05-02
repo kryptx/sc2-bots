@@ -1,5 +1,19 @@
 # Module-based bot for SC2
+## Running the bot
+Requires Python 3.7 or greater. You will also need to set up maps as specified by [Burny](https://github.com/BurnySc2/python-sc2#maps)
 
+Clone this repo, then:
+
+    pip install .
+    python -O start.py
+
+## Viewing Instrumentation
+
+    cd infrastructure
+    docker-compose up -d
+    open localhost:5601
+
+Then in Kibana, import the kibana-dashboard.ndjson file from this repository for an example dashboard. Filebeat should wire up automatically to read the log file produced by the bot, and the dashboards will populate in time.
 ## Features
 * Module-based design, allows composing bots more abstractly
   * Only tell the bot what you actually want - it automatically builds the required tech
