@@ -14,3 +14,4 @@ logs/*
 # some garbage
 __pycache__
 *-design.txt
+.DS_Store

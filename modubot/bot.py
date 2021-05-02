@@ -90,7 +90,11 @@ class ModuBot(sc2.BotAI):
       "minerals": self.minerals,
       "vespene": self.vespene,
       "supply_used": self.supply_used,
-      "supply_cap": self.supply_cap
+      "supply_cap": self.supply_cap,
+      "allocated": dict(zip(
+        [ type(m).__name__ for m in self.modules ],
+        [ len(m.allocated) for m in self.modules ],
+      ))
     })
 
   def log_request_result(self, request, original_request, result_msg):
