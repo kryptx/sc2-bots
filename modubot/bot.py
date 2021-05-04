@@ -1,4 +1,6 @@
 import logging
+import math
+import os
 import random
 import sc2
 import sys
@@ -20,13 +22,17 @@ from modubot.common import Urgency, list_flatten, OptionsObject, is_worker, Logg
 def urgencyValue(req):
   return req.urgency
 
+log_level = os.getenv("LOG_LEVEL", "warn")
+numeric_level = getattr(logging, log_level.upper(), None)
+if not isinstance(numeric_level, int):
+    raise ValueError(f"Invalid log level: {log_level}")
+
 handler = logging.FileHandler(filename='logs/sc2.log',encoding='utf-8')
 handler.setFormatter(jsonlogger.JsonFormatter())
-logging.basicConfig(level=logging.INFO,handlers=[handler])
+logging.basicConfig(level=numeric_level,handlers=[handler])
 
 ### EL BOT ###
 class ModuBot(sc2.BotAI):
-
   def __init__(self, modules=[], limits=dict()):
 
     self.shared = OptionsObject()  # just a generic object
@@ -92,6 +98,7 @@ class ModuBot(sc2.BotAI):
       "message": "Beginning iteration",
       "iteration": iteration,
       "optimism": self.shared.optimism,
+      "log_optimism": math.log(max(self.shared.optimism, 0.001)),
       "minerals": self.minerals,
       "vespene": self.vespene,
       "supply_used": self.supply_used,
@@ -100,7 +107,8 @@ class ModuBot(sc2.BotAI):
       "allocated": dict(zip(
         [ type(m).__name__ for m in self.modules ],
         [ len(m.allocated) for m in self.modules ],
-      ))
+      )),
+      "unallocated": len(self.unallocated())
     })
 
   def log_request_result(self, request, original_request, result_msg):

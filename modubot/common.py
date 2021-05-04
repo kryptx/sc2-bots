@@ -21,6 +21,26 @@ BaseStructures = {
   UnitTypeId.HIVE
 }
 
+class LoggerWithFields(object):
+  def __init__(self, logger, fields):
+    self.logger = logger
+    self.fields = fields
+
+  def withFields(self, fields):
+    return LoggerWithFields(self.logger, {**self.fields, **fields})
+
+  def __getattr__(self, name):
+    if name not in ['debug','info','warn','warning','error']:
+      return getattr(self.logger, name)
+
+    def log_with_fields(msg):
+      if isinstance(msg, str):
+        msg = {"message": msg}
+
+      getattr(self.logger, name)({"level": name, **msg, **self.fields})
+
+    return log_with_fields
+
 def median_position(positions=[]):
   xes = sorted(pos.x for pos in positions)
   ys = sorted(pos.y for pos in positions)
@@ -221,25 +241,6 @@ def retreat(unit, target):
 
 def is_worker(unit):
   return unit.type_id in [ UnitTypeId.PROBE, UnitTypeId.SCV, UnitTypeId.DRONE, UnitTypeId.MULE, UnitTypeId.OVERLORD ]
-
-class LoggerWithFields(object):
-  def __init__(self, logger, fields):
-    self.logger = logger
-    self.fields = fields
-
-  def withFields(self, fields):
-    return LoggerWithFields(self.logger, {**self.fields, **fields})
-
-  def __getattr__(self, name):
-    if name not in ['debug','info','warn','warning','error']:
-      return getattr(self.logger, name)
-
-    def log_with_fields(msg):
-      if isinstance(msg, str):
-        msg = {"message": msg}
-      getattr(self.logger, name)({**msg, **self.fields})
-
-    return log_with_fields
 
 class OptionsObject(object):
   pass
