@@ -4,7 +4,6 @@ from modubot.common import Urgency, LoggerWithFields
 class BotModule(object):
   def __init__(self, bot):
     self.bot = bot
-    self.log = LoggerWithFields(bot.log, { "module": type(self).__name__ })
 
   def __getattr__(self, name):
     return getattr(self.bot, name)
@@ -26,6 +25,7 @@ class BotModule(object):
 
   # Some other methods that are available
   async def on_start(self):
+    self.log = LoggerWithFields(self.bot.log, { "module": type(self).__name__ })
     pass
 
   async def on_end(self, game_result):

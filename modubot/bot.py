@@ -28,9 +28,6 @@ logging.basicConfig(level=logging.INFO,handlers=[handler])
 class ModuBot(sc2.BotAI):
 
   def __init__(self, modules=[], limits=dict()):
-    rand = random.randint(100000,999999)
-    ts = time.time()
-    self.log = LoggerWithFields(logging.getLogger(), { "start_time": ts })
 
     self.shared = OptionsObject()  # just a generic object
     self.shared.optimism = 1       # Because the linter is an asshole
@@ -51,6 +48,9 @@ class ModuBot(sc2.BotAI):
       module.deallocate(tag_set)
 
   async def on_start(self):
+    start_time = str(int(time.time()))
+    ts = f"{start_time}-{self.player_id}-{self.race}"
+    self.log = LoggerWithFields(logging.getLogger(), { "bot_id": ts, "start_time": start_time })
     if self.race == Race.Protoss:
       self.planner = ProtossBasePlanner(self)
     elif self.race == Race.Zerg:
