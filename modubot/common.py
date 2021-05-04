@@ -224,12 +224,11 @@ def is_worker(unit):
 
 class LoggerWithFields(object):
   def __init__(self, logger, fields):
-    if type(logger) == LoggerWithFields:
-      self.logger = logger.logger
-      self.fields = {**logger.fields, **fields}
-    else:
-      self.logger = logger
-      self.fields = fields
+    self.logger = logger
+    self.fields = fields
+
+  def withFields(self, fields):
+    return LoggerWithFields(self.logger, {**self.fields, **fields})
 
   def __getattr__(self, name):
     if name not in ['debug','info','warn','warning','error']:

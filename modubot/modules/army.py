@@ -47,8 +47,11 @@ class SimpleArmyBuilder(BotModule):
         units[tid] += cost
       else:
         units[tid] = cost
-    self.log.info({
-      "message": "Unit breakdown",
-      "units": units,
-      "game_time": self.bot.time
-    })
+
+    for unit_type, supply_used in units.items():
+      self.log.info({
+        "message": "Unit count",
+        "unit_type": unit_type,
+        "supply_used": supply_used,
+        "game_time": self.bot.time
+      })

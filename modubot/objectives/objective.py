@@ -7,7 +7,7 @@ from sc2.constants import UnitTypeId
 from sc2.position import Point2
 from sc2.units import Units
 
-from modubot.common import optimism, is_worker, median_position, LoggerWithFields
+from modubot.common import optimism, is_worker, median_position
 
 class ObjectiveStatus(enum.IntFlag):
   ALLOCATING = 1,   # Need more units
@@ -27,7 +27,7 @@ class StrategicObjective():
     self.units = Units([], self.bot)
     self.last_seen = self.bot.time
     self.enemies = self.find_enemies()
-    self.log = LoggerWithFields(module.log, {"objective": type(self).__name__ })
+    self.log = module.log.withFields({"objective": type(self).__name__ })
 
   def __getattr__(self, name):
     return getattr(self.bot, name)

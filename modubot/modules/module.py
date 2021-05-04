@@ -1,5 +1,5 @@
 from sc2.units import Units
-from modubot.common import Urgency, LoggerWithFields
+from modubot.common import Urgency
 
 class BotModule(object):
   def __init__(self, bot):
@@ -25,7 +25,7 @@ class BotModule(object):
 
   # Some other methods that are available
   async def on_start(self):
-    self.log = LoggerWithFields(self.bot.log, { "module": type(self).__name__ })
+    self.log = self.bot.log.withFields({ "module": type(self).__name__ })
     pass
 
   async def on_end(self, game_result):

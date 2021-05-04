@@ -43,14 +43,16 @@ class ModuBot(sc2.BotAI):
     self.limits = limits
     self.modules = modules
 
+    # for cross-referencing with other bots that are created at the same time
+    self.start_time = str(int(time.time()))
+
   def deallocate(self, tag_set):
     for module in self.modules:
       module.deallocate(tag_set)
 
   async def on_start(self):
-    start_time = str(int(time.time()))
-    ts = f"{start_time}-{self.player_id}-{self.race}"
-    self.log = LoggerWithFields(logging.getLogger(), { "bot_id": ts, "start_time": start_time })
+    bot_id = f"{self.start_time}-{self.player_id}-{self.race}"
+    self.log = LoggerWithFields(logging.getLogger(), { "bot_id": bot_id, "start_time": self.start_time })
     if self.race == Race.Protoss:
       self.planner = ProtossBasePlanner(self)
     elif self.race == Race.Zerg:
@@ -114,7 +116,7 @@ class ModuBot(sc2.BotAI):
     })
 
   async def on_step(self, iteration):
-    self.log = LoggerWithFields(self.log, { "game_time": self.time })
+    self.log = self.log.withFields({ "game_time": self.time })
     requests = []
     for module in self.modules:
       try:
