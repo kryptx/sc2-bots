@@ -2,6 +2,7 @@ import logging
 import random
 import sc2
 import sys
+import time
 
 from pythonjsonlogger import jsonlogger
 
@@ -14,7 +15,7 @@ from sc2.position import Point2
 from modubot.modules.game_state import SurrenderedException
 from modubot.planners.protoss import ProtossBasePlanner
 from modubot.planners.zerg import ZergBasePlanner
-from modubot.common import Urgency, list_flatten, OptionsObject, is_worker
+from modubot.common import Urgency, list_flatten, OptionsObject, is_worker, LoggerWithFields
 
 def urgencyValue(req):
   return req.urgency
@@ -28,7 +29,9 @@ class ModuBot(sc2.BotAI):
 
   def __init__(self, modules=[], limits=dict()):
     rand = random.randint(100000,999999)
-    self.log = logging.getLogger(f"ModuBot-{rand}")
+    ts = time.time()
+    self.log = LoggerWithFields(logging.getLogger(), { "start_time": ts })
+
     self.shared = OptionsObject()  # just a generic object
     self.shared.optimism = 1       # Because the linter is an asshole
     self.unit_command_uses_self_do = True
@@ -91,6 +94,7 @@ class ModuBot(sc2.BotAI):
       "vespene": self.vespene,
       "supply_used": self.supply_used,
       "supply_cap": self.supply_cap,
+      "known_enemies": len(self.shared.known_enemy_units),
       "allocated": dict(zip(
         [ type(m).__name__ for m in self.modules ],
         [ len(m.allocated) for m in self.modules ],
@@ -110,6 +114,7 @@ class ModuBot(sc2.BotAI):
     })
 
   async def on_step(self, iteration):
+    self.log = LoggerWithFields(self.log, { "game_time": self.time })
     requests = []
     for module in self.modules:
       try:
@@ -137,7 +142,7 @@ class ModuBot(sc2.BotAI):
       result = await request.fulfill(self)
 
       while hasattr(result, 'fulfill'):
-        self.log.info({
+        self.log.debug({
           "message": "Replacing request",
           "requested": {
             "request_type": type(request),

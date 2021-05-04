@@ -64,13 +64,6 @@ class AttackObjective(StrategicObjective):
         else:
           self.do(attacking_unit.attack(self.target.position))
 
-    if self.supply_left < 5:
-      for attacking_unit in allocated_units:
-        self.do(attacking_unit.attack(self.target.position))
-      self.log.info("Upgrading to active due to nearing supply cap")
-      self.status = ObjectiveStatus.ACTIVE
-      self.status_since = self.time
-
     if not self.rendezvous:
       return
 

@@ -32,9 +32,11 @@ class DefendBases(BotModule):
     #enemies within 20 units of at least 2 of my structures
     # or, within 15 of the rally point
     threatening_enemies = self.enemy_units.filter(lambda enemy:
-      self.townhalls.closer_than(20, enemy.position).exists or
-      self.structures.closer_than(20, enemy.position).amount > 2 or
-      enemy.position.is_closer_than(20, self.shared.rally_point)
+      not enemy.is_snapshot and (
+        self.townhalls.closer_than(20, enemy.position).exists or
+        self.structures.closer_than(20, enemy.position).amount > 2 or
+        enemy.position.is_closer_than(20, self.shared.rally_point)
+      )
     )
 
     if threatening_enemies.exists:

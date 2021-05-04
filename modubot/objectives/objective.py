@@ -62,6 +62,7 @@ class StrategicObjective():
       "status": self.status,
       "num_units": self.units.amount,
       "num_enemies": self.enemies.amount,
+      "game_time": self.time,
     })
     self.enemies = self.find_enemies()
     if self.enemy_units.tags_in(e.tag for e in self.enemies).exists:
@@ -142,29 +143,17 @@ class StrategicObjective():
 
     still_needed = minimum_units - allocated_units
     still_wanted = optimum_units - allocated_units
-    usable_units = self.unallocated(urgency=self.urgency)
+    usable_units = self.unallocated(urgency=self.urgency).filter(lambda u: not is_worker(u))
     if enemy_units.filter(lambda e: not e.is_flying).empty:
       usable_units = usable_units.filter(lambda u: u.can_attack_air)
-    preferred_units = usable_units.filter(lambda u: u.can_attack_both) if usable_units.exists else usable_units
     adding_units = set()
 
-# todo: fix zealots not getting allocated here
-# maybe it's falling into this first condition too often (since preferred_units don't have zealots)
-# minimum_units can never be higher than 20, which could contribute to this
-# but then I'd expect the objective to become active with 20 attackers
-    if preferred_units.amount >= still_needed:
-      adding_units = set(unit.tag for unit in preferred_units.closest_n_units(self.target.position, still_wanted))
-    elif usable_units.amount >= still_needed:
-      adding_units = set(preferred_units)
-      adding_units.update(usable_units.closest_n_units(self.target.position, still_wanted))
+    if usable_units.amount >= still_needed:
+      adding_units = set(u.tag for u in usable_units.closest_n_units(self.target.position, still_wanted))
 
-    if len(adding_units) > 0:
-      self.log.info({
-        "message": "Allocating units",
-        "quantity": len(adding_units)
-      })
     self.deallocate(adding_units)
     self.allocated = self.allocated.union(adding_units)
+
     if len(self.allocated) >= minimum_units:
       may_proceed = True
 
@@ -181,6 +170,13 @@ class StrategicObjective():
         self.status_since = self.time
 
     self.units = self.bot.units.tags_in(self.allocated)
+
+    if len(adding_units) > 0:
+      self.log.debug({
+        "message": "Allocating units",
+        "quantity": len(adding_units),
+        "now_allocated": len(self.allocated),
+      })
     # noisy, but possibly informative
     # self.log.info(f"{self.units.amount} units allocated for {self.enemies.amount} known enemies")
     return

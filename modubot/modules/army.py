@@ -49,5 +49,6 @@ class SimpleArmyBuilder(BotModule):
         units[tid] = cost
     self.log.info({
       "message": "Unit breakdown",
-      "units": units
+      "units": units,
+      "game_time": self.bot.time
     })
