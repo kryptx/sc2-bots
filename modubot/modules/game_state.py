@@ -43,8 +43,8 @@ class GameStateTracker(BotModule):
       raise SurrenderedException("Surrendered")
 
     self.shared.optimism = optimism(
-      self.units.ready.filter(lambda u: not is_worker(u) and u.type_id != UnitTypeId.QUEEN),
-      (u for u in self.shared.known_enemy_units.values() if not is_worker(u))
+      self.units.ready.filter(lambda u: not is_worker(u) and not u.is_structure),
+      (u for u in self.shared.known_enemy_units.values() if not is_worker(u) and not u.is_structure)
     )
 
     if self.shared.optimism < 0.02 and not self.surrender_declared:

@@ -154,6 +154,7 @@ class BuildRequest():
     await bot.planner.increase_buildable_area(workers)
 
   async def fulfill_by_warp_in(self, bot):
+    # todo: when losing badly (i.e. probably should have surrendered), this can throw because there are no pylons
     pylon = bot.structures(UnitTypeId.PYLON).ready.closest_to(bot.shared.rally_point)
     pos = pylon.position.to2.random_on_distance([2, 5])
     placement = await bot.find_placement(TRAIN_INFO[UnitTypeId.WARPGATE][self.expense]['ability'], pos, placement_step=1)

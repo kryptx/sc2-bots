@@ -3,7 +3,7 @@ from sc2.position import Point2
 from sc2.units import Units
 
 from .module import BotModule
-from modubot.common import list_flatten, BaseStructures, Urgency
+from modubot.common import list_flatten, BaseStructures, Urgency, supply_cost
 from modubot.objectives.objective import ObjectiveStatus
 from modubot.objectives.attack import AttackObjective
 
@@ -21,6 +21,8 @@ class AttackBases(BotModule):
       self.attack_objective.log.info("Upgrading to active because a unit was killed while staging")
       self.attack_objective.status = ObjectiveStatus.ACTIVE
     self.allocated.discard(unit)
+    for o in self.cleanup_objectives:
+      o.allocated.discard(unit)
 
   async def on_step(self, iteration):
     self.shared.attackers = self.units.tags_in(self.allocated)
@@ -55,7 +57,7 @@ class AttackBases(BotModule):
       else:
         self.attack_objective = AttackObjective(self, self.enemy_start_locations[0])
 
-    if self.shared.optimism > 10 and not self.cleanup_objectives and self.unallocated().amount > 20:
+    if self.shared.optimism > 10 and not self.cleanup_objectives and sum(supply_cost(u) for u in self.unallocated()) > 25:
       # Wipe 'em out
       self.cleanup_objectives = [
         AttackObjective(self, e.position)
@@ -75,3 +77,5 @@ class AttackBases(BotModule):
   def deallocate(self, tag_set):
     if self.attack_objective:
       self.attack_objective.allocated.difference_update(tag_set)
+    for objective in self.cleanup_objectives:
+      objective.allocated.difference_update(tag_set)
