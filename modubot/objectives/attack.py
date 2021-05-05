@@ -3,7 +3,7 @@ import itertools
 from sc2.constants import UnitTypeId
 from sc2.position import Point2
 
-from modubot.common import Urgency, optimism, is_worker, median_position
+from modubot.common import Urgency, optimism, is_worker, median_position, supply_cost
 from modubot.objectives.objective import StrategicObjective, ObjectiveStatus
 
 class AttackObjective(StrategicObjective):
@@ -15,8 +15,8 @@ class AttackObjective(StrategicObjective):
   def target(self):
     return self._target
 
-  def minimum_units(self, enemy_units):
-    return min(20, int(enemy_units.filter(lambda u: not u.is_structure and not is_worker(u)).amount / 2))
+  def minimum_supply(self, enemy_units):
+    return min(40, sum(supply_cost(u) for u in enemy_units.filter(lambda u: not u.is_structure and not is_worker(u))))
 
   async def retreat(self):
     for retreating_unit in self.units:

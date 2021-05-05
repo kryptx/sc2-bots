@@ -9,7 +9,7 @@ from sc2.player import Bot, Computer
 from sc2.data import AIBuild
 
 from maps import all_maps
-from protoss_reactive import build as build_protoss
+from protoss_greedy import build as build_protoss
 from zerg_experimental import build as build_zerg
 
 protoss_bot = build_protoss()
@@ -17,9 +17,9 @@ zerg_bot = build_zerg()
 
 def main():
   sc2.run_game(sc2.maps.get(random.choice(all_maps)), [
-    #Bot(Race.Zerg, zerg_bot),
+    # Bot(Race.Zerg, zerg_bot),
     Bot(Race.Protoss, protoss_bot),
-    Computer(Race.Random, Difficulty.VeryHard, AIBuild.RandomBuild) # Macro, Power, Rush, Timing, Air, (RandomBuild)
+    Computer(Race.Random, Difficulty.VeryHard, AIBuild.Air) # Macro, Power, Rush, Timing, Air, (RandomBuild)
   ], realtime=False)
 
 if __name__ == '__main__':

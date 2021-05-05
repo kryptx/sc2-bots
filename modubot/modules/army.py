@@ -2,7 +2,7 @@ import math
 from sc2.constants import UpgradeId, UnitTypeId
 
 from .module import BotModule
-from modubot.common import BuildRequest, Urgency
+from modubot.common import BuildRequest, Urgency, supply_cost
 
 class SimpleArmyBuilder(BotModule):
   def __init__(self, bot, get_priorities):
@@ -42,7 +42,7 @@ class SimpleArmyBuilder(BotModule):
     units = {}
     for u in self.units:
       tid = str(u.type_id)
-      cost = u._type_data._proto.food_required
+      cost = supply_cost(u)
       if tid in units:
         units[tid] += cost
       else:

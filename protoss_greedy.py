@@ -27,6 +27,9 @@ def army_priority(bot):
       priority = sorted([ UnitTypeId.HIGHTEMPLAR, UnitTypeId.STALKER ], key=unit_amount)
 
     priority.append(UnitTypeId.ZEALOT)
+    if bot.units(UnitTypeId.SENTRY).amount < 2:
+      priority.insert(0, UnitTypeId.SENTRY)
+
     bot.log.info(f"Returning unit priority {priority}")
     return priority
 
@@ -48,7 +51,7 @@ def build():
 
   bot.modules = [
       GameStateTracker(bot),
-      # OptimismChatter(bot),
+      OptimismChatter(bot),
       SpectatorCamera(bot),
       WorkerDistributor(bot),
       AttackBases(bot),

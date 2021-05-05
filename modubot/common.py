@@ -242,5 +242,9 @@ def retreat(unit, target):
 def is_worker(unit):
   return unit.type_id in [ UnitTypeId.PROBE, UnitTypeId.SCV, UnitTypeId.DRONE, UnitTypeId.MULE, UnitTypeId.OVERLORD ]
 
+def supply_cost(unit):
+  return unit._type_data._proto.food_required
+
+
 class OptionsObject(object):
   pass

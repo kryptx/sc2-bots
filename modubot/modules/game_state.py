@@ -17,6 +17,7 @@ class GameStateTracker(BotModule):
     bot.shared.optimism = 1
 
   async def on_start(self):
+    await super().on_start()
     if self.race == Race.Terran:
       self.shared.new_base = UnitTypeId.COMMANDCENTER
       self.shared.gas_structure = UnitTypeId.REFINERY

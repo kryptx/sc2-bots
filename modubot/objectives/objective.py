@@ -7,7 +7,7 @@ from sc2.constants import UnitTypeId
 from sc2.position import Point2
 from sc2.units import Units
 
-from modubot.common import optimism, is_worker, median_position
+from modubot.common import optimism, is_worker, median_position, supply_cost
 
 class ObjectiveStatus(enum.IntFlag):
   ALLOCATING = 1,   # Need more units
@@ -92,11 +92,11 @@ class StrategicObjective():
     else:
       self.do(unit.move(target))
 
-  def minimum_units(self, enemy_units):
+  def minimum_supply(self, enemy_units):
     return 0
 
-  def optimum_units(self, enemy_units):
-    return self.bot.units.filter(lambda u: u.ground_dps + u.air_dps > 5 and not is_worker(u)).amount
+  def optimum_supply(self, enemy_units):
+    return sum(supply_cost(unit) for unit in self.bot.units.filter(lambda u: u.ground_dps + u.air_dps > 5 and not is_worker(u)))
 
   def do_attack(self, unit):
     self.do(unit.attack(self.enemies.closest_to(self.target.position).position if self.enemies.exists else self.target.position))
@@ -134,27 +134,32 @@ class StrategicObjective():
   def allocate(self):
     may_proceed = False
     enemy_units = self.enemies
-    minimum_units = self.minimum_units(enemy_units)
-    optimum_units = self.optimum_units(enemy_units)
-    allocated_units = len(self.allocated)
+    minimum_supply = int(self.minimum_supply(enemy_units))
+    optimum_supply = int(self.optimum_supply(enemy_units))
+    allocated_supply = int(sum(supply_cost(u) for u in self.units.tags_in(self.allocated)))
 
-    if minimum_units <= allocated_units:
+    if minimum_supply <= allocated_supply:
       may_proceed = True
 
-    still_needed = minimum_units - allocated_units
-    still_wanted = optimum_units - allocated_units
+    still_needed = minimum_supply - allocated_supply
+    still_wanted = max(optimum_supply - allocated_supply, still_needed)
     usable_units = self.unallocated(urgency=self.urgency).filter(lambda u: not is_worker(u))
     if enemy_units.filter(lambda e: not e.is_flying).empty:
       usable_units = usable_units.filter(lambda u: u.can_attack_air)
+    preferred_units = usable_units.filter(lambda u: u.can_attack_both) if usable_units.exists else usable_units
     adding_units = set()
 
-    if usable_units.amount >= still_needed:
-      adding_units = set(u.tag for u in usable_units.closest_n_units(self.target.position, still_wanted))
+    if sum(supply_cost(u) for u in preferred_units) >= still_needed:
+      # still_wanted is actually supply, not units, so this will over-select for protoss and under-select for zerg
+      adding_units = set(unit.tag for unit in preferred_units.closest_n_units(self.target.position, still_wanted))
+    elif sum(supply_cost(u) for u in usable_units) >= still_needed:
+      adding_units = set(preferred_units)
+      adding_units.update((unit.tag for unit in usable_units.closest_n_units(self.target.position, still_wanted)))
 
     self.deallocate(adding_units)
     self.allocated = self.allocated.union(adding_units)
 
-    if len(self.allocated) >= minimum_units:
+    if sum(supply_cost(u) for u in self.units.tags_in(self.allocated)) >= minimum_supply:
       may_proceed = True
 
     if may_proceed:

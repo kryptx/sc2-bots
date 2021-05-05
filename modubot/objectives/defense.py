@@ -1,7 +1,7 @@
 from sc2.constants import UnitTypeId
 from sc2.units import Units
 
-from modubot.common import Urgency, optimism
+from modubot.common import Urgency, optimism, supply_cost
 
 from modubot.objectives.objective import StrategicObjective, ObjectiveStatus
 
@@ -53,6 +53,6 @@ class DefenseObjective(StrategicObjective):
       self.structures.closer_than(15, u.position).amount > 2)
     )
 
-  def optimum_units(self, enemy_units):
-    return enemy_units.amount * 3
+  def optimum_supply(self, enemy_units):
+    return sum(supply_cost(u) for u in enemy_units) * 3
 

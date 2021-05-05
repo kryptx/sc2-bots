@@ -19,9 +19,12 @@ class ProtossMicro(BotModule):
 
   async def arrange(self):
     stalkers = self.units(UnitTypeId.STALKER)
+    sentries = self.units(UnitTypeId.SENTRY)
+
     if stalkers.empty:
       return
     stalkers_with_low_shields = stalkers.filter(lambda s: s.shield < 20)
+    sentries_near_ranged_attackers = sentries.filter(lambda s: self.enemy_units.filter(lambda e: e.ground_range > 2).closer_than(12, s.position))
     for stalker in stalkers_with_low_shields:
       if any(enemy.position.is_closer_than(5, stalker.position) for enemy in self.enemy_units):
         def distance_to_stalker(unit):
@@ -36,8 +39,17 @@ class ProtossMicro(BotModule):
 
         self.do(stalker.attack(nearest_enemy.position, queue=True))
 
+    for sentry in sentries_near_ranged_attackers:
+      abilities = await self.get_available_abilities(sentry)
+      if AbilityId.GUARDIANSHIELD_GUARDIANSHIELD in abilities:
+        self.do(sentry(AbilityId.GUARDIANSHIELD_GUARDIANSHIELD))
+      if sentry.shield < sentry.shield_max * 0.9:
+        enemies_in_range = self.enemy_units.filter(lambda e: e.ground_range <= sentry.position.distance_to(e.position))
+        if enemies_in_range.amount > 0:
+          self.do(sentry.move(sentry.position.towards(enemies_in_range.center, -2)))
+
     for effect in self.state.effects:
-      if effect.id == EffectId.PSISTORMPERSISTENT:
+      if effect.id in [EffectId.PSISTORMPERSISTENT, EffectId.RAVAGERCORROSIVEBILECP]:
         for position in effect.positions:
           for unit in self.units.closer_than(4, position):
             self.do(unit.move(unit.position.towards(position, -2)))

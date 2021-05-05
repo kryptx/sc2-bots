@@ -11,6 +11,7 @@ class AttackBases(BotModule):
   def __init__(self, bot):
     super().__init__(bot)
     self.attack_objective = None
+    self.cleanup_objectives = []
     bot.shared.attackers = Units([], bot)
     bot.shared.victims = Units([], bot)
 
@@ -32,6 +33,12 @@ class AttackBases(BotModule):
         self.shared.victims = self.attack_objective.enemies
         return
 
+    for cleanup in self.cleanup_objectives:
+      await cleanup.tick()
+      if cleanup.is_complete():
+        self.shared.victims = Units([], self.bot)
+        self.cleanup_objectives.remove(cleanup)
+
     if (self.supply_used > 196 or self.shared.optimism > 1.5) and not self.attack_objective:
       known_enemy_units = self.shared.known_enemy_units.values()
       enemy_bases = self.enemy_structures(BaseStructures)
@@ -48,9 +55,18 @@ class AttackBases(BotModule):
       else:
         self.attack_objective = AttackObjective(self, self.enemy_start_locations[0])
 
+    if self.shared.optimism > 10 and not self.cleanup_objectives and self.unallocated().amount > 20:
+      # Wipe 'em out
+      self.cleanup_objectives = [
+        AttackObjective(self, e.position)
+        for e in self.enemy_structures(BaseStructures) if e.position != self.attack_objective.target
+      ]
+
   @property
   def allocated(self):
-    return self.attack_objective.allocated if self.attack_objective else set()
+    cleaners = (o.allocated for o in self.cleanup_objectives)
+    attackers = self.attack_objective.allocated if self.attack_objective else set()
+    return attackers.union(*cleaners)
 
   @property
   def urgency(self):

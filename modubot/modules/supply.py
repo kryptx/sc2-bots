@@ -14,6 +14,7 @@ class SupplyBufferer(BotModule):
     self.compute_buffer = compute_buffer
 
   async def on_start(self):
+    await super().on_start()
     if self.race == Race.Protoss:
       self.get_supply_request = lambda urgency: BuildRequest(UnitTypeId.PYLON, urgency)
     if self.race == Race.Zerg:
