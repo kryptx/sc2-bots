@@ -228,6 +228,7 @@ class ModuBot(sc2.BotAI):
   # - respond to requests to deallocate units
   # In exchange for meeting these requirements, a module may add units freely to its allocated set,
   # provided that another module has not claimed them at a higher urgency.
+
   def unallocated(self, unit_types=None, urgency=Urgency.NONE):
     units = self.units.ready(unit_types) if unit_types else self.units.ready.filter(lambda u: not is_worker(u))
     return units.tags_not_in(list_flatten([

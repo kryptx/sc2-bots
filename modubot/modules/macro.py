@@ -82,7 +82,7 @@ class MacroManager(BotModule):
       self.do(worker.gather(self.mineral_field.closest_to(worker)))
 
     vgs = self.get_empty_geysers(gas_structs)
-    if vgs:
+    if vgs and not self.already_pending(self.shared.gas_structure):
       urgency = self.gas_urgency(vgs)
       requests.append(BuildRequest(self.shared.gas_structure, urgency, force_target=vgs[0]))
 

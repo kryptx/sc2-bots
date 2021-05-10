@@ -11,7 +11,7 @@ class AttackBases(BotModule):
   def __init__(self, bot):
     super().__init__(bot)
     self.attack_objective = None
-    self.cleanup_objectives = []
+    # self.cleanup_objectives = []
     bot.shared.attackers = Units([], bot)
     bot.shared.victims = Units([], bot)
 
@@ -21,8 +21,8 @@ class AttackBases(BotModule):
       self.attack_objective.log.info("Upgrading to active because a unit was killed while staging")
       self.attack_objective.status = ObjectiveStatus.ACTIVE
     self.allocated.discard(unit)
-    for o in self.cleanup_objectives:
-      o.allocated.discard(unit)
+    # for o in self.cleanup_objectives:
+    #   o.allocated.discard(unit)
 
   async def on_step(self, iteration):
     self.shared.attackers = self.units.tags_in(self.allocated)
@@ -35,11 +35,11 @@ class AttackBases(BotModule):
         self.shared.victims = self.attack_objective.enemies
         return
 
-    for cleanup in self.cleanup_objectives:
-      await cleanup.tick()
-      if cleanup.is_complete():
-        self.shared.victims = Units([], self.bot)
-        self.cleanup_objectives.remove(cleanup)
+    # for cleanup in self.cleanup_objectives:
+    #   await cleanup.tick()
+    #   if cleanup.is_complete():
+    #     self.shared.victims = Units([], self.bot)
+    #     self.cleanup_objectives.remove(cleanup)
 
     if (self.supply_used > 196 or self.shared.optimism > 1.5) and not self.attack_objective:
       known_enemy_units = self.shared.known_enemy_units.values()
@@ -57,18 +57,19 @@ class AttackBases(BotModule):
       else:
         self.attack_objective = AttackObjective(self, self.enemy_start_locations[0])
 
-    if self.shared.optimism > 10 and not self.cleanup_objectives and sum(supply_cost(u) for u in self.unallocated()) > 25:
-      # Wipe 'em out
-      self.cleanup_objectives = [
-        AttackObjective(self, e.position)
-        for e in self.enemy_structures(BaseStructures) if e.position != self.attack_objective.target
-      ]
+    # if self.shared.optimism > 10 and not self.cleanup_objectives and sum(supply_cost(u) for u in self.unallocated()) > 25:
+    #   # Wipe 'em out
+    #   self.cleanup_objectives = [
+    #     AttackObjective(self, e.position)
+    #     for e in self.enemy_structures(BaseStructures) if e.position != self.attack_objective.target
+    #  ]
 
   @property
   def allocated(self):
-    cleaners = (o.allocated for o in self.cleanup_objectives)
-    attackers = self.attack_objective.allocated if self.attack_objective else set()
-    return attackers.union(*cleaners)
+    # cleaners = (o.allocated for o in self.cleanup_objectives)
+    # attackers = self.attack_objective.allocated if self.attack_objective else set()
+    # return attackers.union(*cleaners)
+    return self.attack_objective.allocated if self.attack_objective else set()
 
   @property
   def urgency(self):
@@ -77,5 +78,5 @@ class AttackBases(BotModule):
   def deallocate(self, tag_set):
     if self.attack_objective:
       self.attack_objective.allocated.difference_update(tag_set)
-    for objective in self.cleanup_objectives:
-      objective.allocated.difference_update(tag_set)
+    # for objective in self.cleanup_objectives:
+    #   objective.allocated.difference_update(tag_set)

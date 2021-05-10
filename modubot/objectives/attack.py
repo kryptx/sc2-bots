@@ -16,7 +16,10 @@ class AttackObjective(StrategicObjective):
     return self._target
 
   def minimum_supply(self, enemy_units):
-    return min(40, sum(supply_cost(u) for u in enemy_units.filter(lambda u: not u.is_structure and not is_worker(u))))
+    return sum(supply_cost(u) for u in (self.units.tags_in(self.allocated) + self.unallocated(urgency=self.urgency).filter(lambda u: not is_worker(u))))
+
+  def optimum_supply(self, enemy_units):
+    return sum(supply_cost(u) for u in self.units.filter(lambda u: not is_worker(u)))
 
   async def retreat(self):
     for retreating_unit in self.units:

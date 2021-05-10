@@ -55,4 +55,3 @@ class DefenseObjective(StrategicObjective):
 
   def optimum_supply(self, enemy_units):
     return sum(supply_cost(u) for u in enemy_units) * 3
-
