@@ -4,7 +4,7 @@ Requires Python 3.7 or greater. You will also need to set up maps as specified b
 
 Clone this repo, then:
 
-    pip install .
+    pip install -r requirements.txt
     python -O start.py
 
 ## Bot Features
