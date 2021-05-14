@@ -7,6 +7,7 @@ Clone this repo, then (preferably in a [virtualenv](https://pypi.org/project/vir
     pip install -r requirements.txt
     python -O start.py
 
+The `-O` option **must** be present because burny's library uses `assert()` statements liberally which are, in my estimation, either completely unnecessary or only serve to prevent a different error which is no less fatal and might be more helpful. They are a particular problem in places where they assert that collections are not empty, especially when the implmentation already correctly handles empty collections. Rather than add conditions for collection sizes before using these methods, I elected to use this option.
 ## Bot Features
 * Module-based design, allows composing bots more abstractly
   * Only tell the bot what you actually want - it automatically builds the required tech
