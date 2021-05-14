@@ -2,7 +2,7 @@ aiohttp==3.7.4.post0
 appdirs==1.4.4
 async-timeout==3.0.1
 attrs==20.3.0
--e git+https://github.com/BurnySc2/python-sc2.git@c126634296e782aab4a126ffa3527f1b2d6fca05#egg=burnysc2
+burnysc2==5.0.10
 certifi==2020.12.5
 chardet==4.0.0
 distlib==0.3.1
@@ -24,7 +24,6 @@ s2clientprotocol==5.0.7.84643.0
 scipy==1.6.3
 six==1.15.0
 smmap==4.0.0
--e git+git@github.com:kryptx/sc2-bots.git@d299827ad8982220f3c559827d17dba9b9dbb86f#egg=starkryptx
 typing-extensions==3.7.4.3
 virtualenv==20.4.4
 virtualenv-clone==0.5.4
