@@ -2,7 +2,7 @@
 ## Running the bot
 Requires Python 3.7 or greater. You will also need to set up maps as specified by [Burny](https://github.com/BurnySc2/python-sc2#maps)
 
-Clone this repo, then:
+Clone this repo, then (preferably in a [virtualenv](https://pypi.org/project/virtualenv/)):
 
     pip install -r requirements.txt
     python -O start.py
