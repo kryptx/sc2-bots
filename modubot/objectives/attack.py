@@ -16,7 +16,11 @@ class AttackObjective(StrategicObjective):
     return self._target
 
   def minimum_supply(self, enemy_units):
-    return sum(supply_cost(u) for u in (self.units.tags_in(self.allocated) + self.unallocated(urgency=self.urgency).filter(lambda u: not is_worker(u))))
+    #everyone...! but no less supply than we know we'll be facing
+    return max(
+      sum(supply_cost(u) for u in enemy_units),
+      sum(supply_cost(u) for u in (self.units.tags_in(self.allocated) + self.unallocated(urgency=self.urgency).filter(lambda u: not is_worker(u))))
+    )
 
   def optimum_supply(self, enemy_units):
     return sum(supply_cost(u) for u in self.units.filter(lambda u: not is_worker(u)))

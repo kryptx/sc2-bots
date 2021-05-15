@@ -63,8 +63,8 @@ def build():
       MacroManager(bot,
         fast_expand=True,
         gas_urgency=lambda candidate_geysers:
-          Urgency.NONE if not candidate_geysers
-            else Urgency.VERYHIGH if bot.structures(bot.shared.gas_structure).empty and not bot.already_pending(bot.shared.gas_structure)
+          Urgency.NONE if (not candidate_geysers or bot.already_pending(bot.shared.gas_structure))
+            else Urgency.VERYHIGH if bot.structures(bot.shared.gas_structure).empty
             else Urgency.HIGH if bot.structures({ UnitTypeId.GATEWAY, UnitTypeId.WARPGATE }).amount > 2 \
               or bot.structures(bot.shared.gas_structure).amount < bot.structures({ UnitTypeId.GATEWAY, UnitTypeId.WARPGATE }).amount
             else Urgency.NONE
