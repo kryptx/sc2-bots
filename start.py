@@ -19,7 +19,9 @@ def main():
   sc2.run_game(sc2.maps.get(random.choice(all_maps)), [
     # Bot(Race.Zerg, zerg_bot),
     Bot(Race.Protoss, protoss_bot),
-    Computer(Race.Random, Difficulty.VeryHard, AIBuild.Air) # Macro, Power, Rush, Timing, Air, (RandomBuild)
+    # Difficulties: VeryEasy, Easy, Medium, MediumHard, Hard, VeryHard, CheatVision, CheatMoney, CheatInsane
+    # Builds: Macro, Power, Rush, Timing, Air, (RandomBuild)
+    Computer(Race.Random, Difficulty.CheatMoney, AIBuild.RandomBuild)
   ], realtime=False)
 
 if __name__ == '__main__':
